@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>暗記マスキング - 無料のスマホ・PC対応 暗記シート作成アプリ</title>
+    <meta name="description" content="スマホやPCが赤シート代わりに！毎日の勉強を効率化する、インストール不要の無料学習ツール「暗記マスキング」。お手持ちのPDFや画像に黒塗りマスキング！蛍光ペンやテキスト追加もできて、そのまま保存可能！">
+    <meta name="keywords" content="暗記シート,暗記メーカー,PDF,黒塗り,無料,ブラウザ,スマホ対応,赤シート">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        body { font-family: sans-serif; background-color: #f0f4f8; text-align: center; padding: 10px; padding-bottom: 200px; margin: 0; overflow: auto; }
+
+        /* --- ヘッダーとログイン情報 --- */
+        #header-row { display: flex; justify-content: space-between; align-items: center; max-width: 98%; margin: 0 auto 10px; }
+        h1 { margin: 0; font-size: 24px; color: #333; }
+        #user-info { display: flex; align-items: center; gap: 10px; }
+        #user-name { font-size: 14px; font-weight: bold; color: #555; display: none; }
+
+        /* --- 編集ツールバー --- */
+        #toolbar { background-color: #ffffff; padding: 10px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 10px; align-items: center; }
+        .toolbar-row { display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; align-items: center; width: 100%; }
+
+        .tool-switch { display: flex; background-color: #e9ecef; border-radius: 5px; overflow: hidden; border: 1px solid #ccc; flex-wrap: wrap; }
+        .tool-switch label { padding: 8px 12px; cursor: pointer; font-weight: bold; transition: 0.2s; font-size: 14px; }
+        .tool-switch input[type="radio"] { display: none; }
+        .tool-switch input[type="radio"]:checked + label { background-color: #007bff; color: white; }
+
+        .prop-group { display: none; align-items: center; gap: 8px; padding-left: 10px; border-left: 2px solid #ccc; }
+        
+        .color-palette { display: flex; gap: 6px; align-items: center; }
+        .swatch { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid white; box-shadow: 0 0 0 1px #ccc; transition: 0.1s; }
+        .swatch:hover { transform: scale(1.1); }
+        .swatch.active { box-shadow: 0 0 0 2px #007bff; transform: scale(1.15); }
+        .swatch.custom-swatch { background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red); }
+
+        .combo-box { position: relative; display: inline-flex; align-items: center; border: 1px solid #ccc; border-radius: 4px; background: white; height: 30px; }
+        .combo-input { border: none; outline: none; width: 40px; text-align: center; background: transparent; font-size: 14px; font-family: sans-serif; }
+        .combo-input::-webkit-inner-spin-button, .combo-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .combo-input[type="number"] { -moz-appearance: textfield; }
+        .combo-dropdown-btn { border: none; background: #f0f0f0; cursor: pointer; padding: 0 6px; border-left: 1px solid #ccc; font-size: 10px; height: 100%; border-radius: 0 3px 3px 0; color: #555; }
+        .combo-dropdown-btn:hover { background: #e0e0e0; }
+        .combo-list { position: absolute; top: calc(100% + 2px); left: 0; background: white; border: 1px solid #ccc; box-shadow: 0 4px 8px rgba(0,0,0,0.2); list-style: none; padding: 0; margin: 0; display: none; flex-direction: column; max-height: 200px; overflow-y: auto; z-index: 1000; width: 100%; border-radius: 4px; }
+        .combo-list li { padding: 8px 5px; cursor: pointer; font-size: 14px; text-align: center; border-bottom: 1px solid #eee; }
+        .combo-list li:hover { background: #007bff; color: white; }
+
+        .setting-select { height: 30px; border: 1px solid #ccc; border-radius: 4px; padding: 0 5px; font-size: 14px; cursor: pointer; background-color: white; }
+        .number-input { height: 30px; border: 1px solid #ccc; border-radius: 4px; padding: 0 5px; font-size: 14px; background-color: white; text-align: center; }
+        #pen-width-input { width: 50px; }
+        
+        .btn { padding: 8px 15px; font-size: 14px; cursor: pointer; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; display: flex; align-items: center; gap: 5px; font-weight: bold; }
+        .btn:hover { background-color: #e9e9e9; }
+        .btn:active { background-color: #ddd; }
+        .btn-icon { padding: 4px 8px; } 
+        .btn-danger { color: #d9534f; border-color: #d43f3a; }
+        .btn-danger:hover { background-color: #ffeeee; }
+        .btn-download { background-color: #e6f7ff; color: #0050b3; border-color: #91d5ff; }
+        .btn-download:hover { background-color: #bae0ff; }
+        .btn-cloud-save { background-color: #fff3cd; color: #856404; border-color: #ffeeba; }
+        .btn-cloud-save:hover { background-color: #ffe8a1; }
+        .btn-cloud-load { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
+        .btn-cloud-load:hover { background-color: #c3e6cb; }
+        .slider-label { font-size: 12px; font-weight: bold; margin-right: 2px; }
+
+        /* --- ワークスペース周りレイアウト --- */
+        #main-area { display: flex; flex-direction: column; max-width: 98%; margin: 0 auto; } 
+        #controls-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; width: 100%; }
+        #left-controls { display: flex; align-items: center; gap: 10px; }
+        #btn-toggle-sidebar { font-size: 18px; padding: 4px 10px; }
+        #page-navigation { display: flex; align-items: center; gap: 5px; font-weight: bold; background: white; padding: 4px 10px; border-radius: 6px; border: 1px solid #ccc; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        #page-input { width: 40px; text-align: center; border: 1px solid #ccc; border-radius: 4px; padding: 2px; font-size: 14px; }
+        #zoom-controls { display: inline-flex; align-items: center; gap: 8px; background-color: #ffffff; padding: 6px 12px; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        #zoom-controls button { padding: 4px 10px; font-weight: bold; }
+        #zoom-text { font-weight: bold; width: 60px; text-align: center; font-size: 16px; }
+
+        #workspace-outer { display: flex; width: 100%; height: 800px; gap: 10px; }
+        #pdf-sidebar { width: 200px; height: 100%; background: #e0e0e0; border: 2px solid #aaa; border-radius: 4px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; padding: 10px 0; box-sizing: border-box; display: none; }
+        .pdf-thumb { width: 80%; background: white; margin-bottom: 15px; border: 2px solid transparent; border-radius: 4px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: 0.2s; display: flex; flex-direction: column; align-items: center; padding-bottom: 5px; }
+        .pdf-thumb.active { border-color: #007bff; box-shadow: 0 0 10px rgba(0,123,255,0.5); }
+        .pdf-thumb canvas { max-width: 100%; height: auto; border-bottom: 1px solid #eee; margin-bottom: 5px; }
+        .pdf-thumb span { font-size: 12px; font-weight: bold; color: #555; }
+
+        #workspace-container { flex: 1; height: 100%; overflow: auto; border: 2px solid #aaa; background-color: #cccccc; border-radius: 4px; position: relative; touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+        #workspace-wrapper { position: relative; }
+        #workspace { position: relative; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.4); user-select: none; transform-origin: top left; background-color: white; }
+        #uploaded-image { display: block; max-width: none; max-height: none; -webkit-touch-callout: none !important; -webkit-user-drag: none; user-drag: none; }
+        #drawing-canvas { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 2; -webkit-touch-callout: none; }
+        #pdf-container { display: none; -webkit-touch-callout: none; }
+        .pdf-page { position: relative; margin-bottom: 20px; background-color: white; box-shadow: 0 4px 8px rgba(0,0,0,0.1); -webkit-touch-callout: none; }
+        .textLayer { opacity: 0.2; pointer-events: none !important; } 
+        .textLayer span { pointer-events: auto !important; -webkit-touch-callout: default !important; -webkit-user-select: text !important; user-select: text !important; cursor: text; }
+
+        #workspace-container.tool-view { cursor: grab; }
+        #workspace-container.tool-view:active { cursor: grabbing; }
+        #workspace-container.tool-view .canvas-element:not(.mask) { pointer-events: none !important; }
+        #workspace-container.tool-mask .textLayer span, #workspace-container.tool-text .textLayer span, #workspace-container.tool-pen .textLayer span, #workspace-container.tool-eraser .textLayer span, #workspace-container.tool-highlight .textLayer span { pointer-events: none !important; }
+        #workspace-container.tool-pen, #workspace-container.tool-eraser, #workspace-container.tool-pen *, #workspace-container.tool-eraser * { cursor: none !important; }
+        #brush-cursor { position: fixed; border: 1px solid rgba(0, 0, 0, 0.6); background-color: rgba(255, 255, 255, 0.4); border-radius: 50%; pointer-events: none; display: none; z-index: 9999; transform: translate(-50%, -50%); }
+
+        .combo-input, .number-input, .text-content { -webkit-user-select: text !important; user-select: text !important; -webkit-touch-callout: default !important; }
+
+        .canvas-element { position: absolute; box-sizing: border-box; }
+        .mask { background-color: black; cursor: pointer; transition: opacity 0.3s; z-index: 3; -webkit-touch-callout: none; }
+        .mask:not(.selected):hover { opacity: 0; }
+        .mask.selected { background-color: rgba(0, 0, 0, 0.7); outline: 2px solid #007bff; cursor: move; }
+        .highlight-box { cursor: pointer; mix-blend-mode: multiply; z-index: 3; -webkit-touch-callout: none; } 
+        .highlight-box.selected { outline: 2px dashed #007bff; cursor: move; }
+        .text-wrapper { min-width: 100px; min-height: 30px; font-size: 20px; padding: 8px; cursor: move; z-index: 4; -webkit-touch-callout: none; }
+        .text-wrapper.selected { outline: 2px solid #007bff; background-color: rgba(255, 255, 255, 0.6); }
+        .text-content { width: 100%; height: 100%; outline: none; word-wrap: break-word; overflow: hidden; pointer-events: none; }
+        .text-wrapper.selected .text-content { pointer-events: auto; cursor: text; }
+        .canvas-element.selected { z-index: 5; transition: none; }
+        .resize-handle { position: absolute; width: 15px; height: 15px; background-color: white; border: 2px solid #007bff; display: none; border-radius: 50%; }
+        .canvas-element.selected .resize-handle { display: block; }
+        .handle-nw { top: -8px; left: -8px; cursor: nwse-resize; }
+        .handle-ne { top: -8px; right: -8px; cursor: nesw-resize; }
+        .handle-sw { bottom: -8px; left: -8px; cursor: nesw-resize; }
+        .handle-se { bottom: -8px; right: -8px; cursor: nwse-resize; }
+        #drawing-box { position: absolute; border: 2px dashed red; background-color: rgba(255, 0, 0, 0.2); pointer-events: none; display: none; z-index: 10; }
+
+        /* --- モーダル・オーバーレイ --- */
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 10000; }
+        .overlay-loading { color: white; font-size: 24px; font-weight: bold; flex-direction: column; }
+        
+        /* ★新規：データ読み込み用モーダル */
+        #load-modal { background: white; padding: 20px; border-radius: 8px; max-width: 400px; width: 90%; text-align: left; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        #load-modal h3 { margin-top: 0; margin-bottom: 15px; font-size: 18px; border-bottom: 2px solid #007bff; padding-bottom: 5px; }
+        #save-data-list { list-style: none; padding: 0; margin: 0 0 15px 0; max-height: 300px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px; }
+        #save-data-list li { padding: 12px 10px; border-bottom: 1px solid #eee; cursor: pointer; transition: 0.2s; font-size: 14px; display: flex; flex-direction: column; gap: 4px; }
+        #save-data-list li:hover { background-color: #f0f8ff; }
+        #save-data-list li span.save-name { font-weight: bold; color: #333; }
+        #save-data-list li span.save-date { font-size: 11px; color: #888; }
+    </style>
+</head>
+<body>
+
+    <div id="loading-overlay" class="overlay overlay-loading">
+        <div>⏳ 処理中...</div>
+        <div style="font-size: 16px; margin-top: 10px;">少し時間がかかる場合があります</div>
+    </div>
+
+    <div id="load-modal-overlay" class="overlay">
+        <div id="load-modal">
+            <h3>☁️ 保存データ一覧</h3>
+            <p style="font-size: 12px; color: #d9534f; margin-top: -10px;">※必ず同じPDF/画像をアップロードしてから読み込んでください</p>
+            <ul id="save-data-list">
+                </ul>
+            <div style="text-align: right;">
+                <button class="btn" id="btn-close-modal" style="display: inline-block;">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="header-row">
+        <h1>暗記マスキング</h1>
+        <div id="user-info">
+            <span id="user-name"></span>
+            <button class="btn" id="btn-login" style="background-color: #4285f4; color: white; border: none;">👤 ログイン</button>
+            <button class="btn btn-danger" id="btn-logout" style="display: none; padding: 4px 8px; font-size: 12px;">ログアウト</button>
+        </div>
+    </div>
+
+    <input type="file" id="imageInput" accept="image/*, application/pdf" style="margin-bottom: 10px;"><br>
+    <div id="brush-cursor"></div>
+
+    <div id="toolbar">
+        <div class="toolbar-row">
+            <div class="tool-switch">
+                <input type="radio" id="tool-view" name="currentTool" value="view">
+                <label for="tool-view" title="視点移動・文字コピー">🖐️ ビュー</label>
+                <input type="radio" id="tool-mask" name="currentTool" value="mask" checked>
+                <label for="tool-mask" title="暗記用黒塗り">⬛ 黒塗り</label>
+                <input type="radio" id="tool-highlight" name="currentTool" value="highlight">
+                <label for="tool-highlight" title="四角くハイライト">🖍️ 蛍光ペン</label>
+                <input type="radio" id="tool-text" name="currentTool" value="text">
+                <label for="tool-text" title="文字入力">🔤 テキスト</label>
+                <input type="radio" id="tool-pen" name="currentTool" value="pen">
+                <label for="tool-pen" title="自由な手書き">🖊️ ペン</label>
+                <input type="radio" id="tool-eraser" name="currentTool" value="eraser">
+                <label for="tool-eraser" title="手書きを消す">🧽 消しゴム</label>
+            </div>
+
+            <button class="btn btn-cloud-save" id="btn-cloud-save" title="クラウドに保存する" style="display: none;">☁️ 保存</button>
+            <button class="btn btn-cloud-load" id="btn-cloud-load" title="クラウドから復元する" style="display: none;">☁️ 読込</button>
+
+            <button class="btn btn-download" id="btn-download" title="画像やPDFとして保存します">💾 書き出し</button>
+            
+            <button class="btn" id="btn-undo" title="1つ戻る">⟲</button>
+            <button class="btn" id="btn-redo" title="やり直し">⟳</button>
+            <button class="btn btn-danger" id="btn-delete" title="選択したものを消す">🗑️</button>
+            <button class="btn btn-danger" id="btn-clear-all" title="すべて消す">💣</button>
+        </div>
+
+        <div class="toolbar-row" id="properties-row" style="display: flex; min-height: 32px;">
+            <span class="prop-group" id="prop-color">
+                <span class="slider-label">色:</span>
+                <div class="color-palette" id="color-palette">
+                    <div class="swatch" data-color="#ff0000" style="background: #ff0000;" title="赤"></div>
+                    <div class="swatch" data-color="#0000ff" style="background: #0000ff;" title="青"></div>
+                    <div class="swatch" data-color="#00aa00" style="background: #00aa00;" title="緑"></div>
+                    <div class="swatch" data-color="#ffff00" style="background: #ffff00;" title="黄"></div>
+                    <div class="swatch" data-color="#ff6600" style="background: #ff6600;" title="オレンジ"></div>
+                    <div class="swatch" data-color="#000000" style="background: #000000;" title="黒"></div>
+                    <div class="swatch" data-color="#ffffff" style="background: #ffffff;" title="白"></div>
+                    <div class="swatch custom-swatch" id="custom-color-swatch" title="カスタム色を選択"></div>
+                    <input type="color" id="native-color-picker" style="display: none;">
+                </div>
+            </span>
+            
+            <span class="prop-group" id="prop-text-style">
+                <button class="btn btn-icon" id="btn-text-bold" title="太字" style="font-family: serif; width: 30px;"><b>B</b></button>
+                <button class="btn btn-icon" id="btn-text-underline" title="下線" style="font-family: serif; width: 30px;"><u>U</u></button>
+            </span>
+
+            <span class="prop-group" id="prop-text-size">
+                <span class="slider-label">文字サイズ:</span>
+                <button class="btn btn-icon" id="btn-text-size-down">－</button>
+                <div class="combo-box" id="text-size-combo">
+                    <input type="number" id="text-size-input" class="combo-input" value="20" min="10">
+                    <button type="button" class="combo-dropdown-btn" id="text-size-btn">▼</button>
+                    <ul class="combo-list" id="text-size-list">
+                        <li data-val="12">12</li><li data-val="16">16</li><li data-val="20">20</li>
+                        <li data-val="24">24</li><li data-val="28">28</li><li data-val="32">32</li>
+                        <li data-val="36">36</li><li data-val="48">48</li><li data-val="64">64</li>
+                        <li data-val="72">72</li>
+                    </ul>
+                </div>
+                <button class="btn btn-icon" id="btn-text-size-up">＋</button>
+            </span>
+
+            <span class="prop-group" id="prop-pen-width">
+                <span class="slider-label">太さ:</span>
+                <input type="range" id="pen-width-slider" min="0.5" max="100" step="0.5" value="3" style="width: 80px;">
+                <input type="number" id="pen-width-input" class="number-input" min="0.5" max="100" step="0.5" value="3">
+            </span>
+
+            <span class="prop-group" id="prop-opacity">
+                <span class="slider-label">濃さ:</span>
+                <input type="range" id="pen-opacity" min="0.1" max="1" step="0.1" value="1" style="width: 80px;">
+            </span>
+        </div>
+    </div>
+
+    <div id="main-area">
+        <div id="controls-row">
+            <div id="left-controls">
+                <button class="btn" id="btn-toggle-sidebar" style="display:none;" title="ページ一覧を開閉">☰</button>
+                <div id="page-navigation" style="display:none;">
+                    <input type="number" id="page-input" value="1" min="1"> / <span id="page-total">1</span>
+                </div>
+            </div>
+            
+            <div id="zoom-controls">
+                <button class="btn" id="btn-zoom-out">－</button>
+                <span id="zoom-text">100%</span>
+                <button class="btn" id="btn-zoom-in">＋</button>
+                <button class="btn" id="btn-zoom-reset">リセット</button>
+            </div>
+        </div>
+
+        <div id="workspace-outer">
+            <div id="pdf-sidebar"></div>
+
+            <div id="workspace-container" class="tool-mask"> 
+                <div id="workspace-wrapper">
+                    <div id="workspace">
+                        <img id="uploaded-image" src="" style="display: none;" draggable="false">
+                        <div id="pdf-container"></div>
+                        <div id="drawing-box"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-analytics.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
+        // ★変更：addDoc, getDocs, query, orderBy を追加
+        import { getFirestore, collection, doc, setDoc, addDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDgPpKV3-uz34MYGjsWZa-545rrQeU-Hnw",
+            authDomain: "anki-d8d5c.firebaseapp.com",
+            projectId: "anki-d8d5c",
+            storageBucket: "anki-d8d5c.firebasestorage.app",
+            messagingSenderId: "1082579676742",
+            appId: "1:1082579676742:web:3265d392b837198ab62447",
+            measurementId: "G-Y444L4XDF3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+
+        onAuthStateChanged(auth, (user) => {
+            const btnLogin = document.getElementById('btn-login');
+            const btnLogout = document.getElementById('btn-logout');
+            const btnSave = document.getElementById('btn-cloud-save');
+            const btnLoad = document.getElementById('btn-cloud-load');
+            const userNameDisplay = document.getElementById('user-name');
+
+            if (user) {
+                currentUser = user;
+                btnLogin.style.display = 'none';
+                btnLogout.style.display = 'block';
+                btnSave.style.display = 'flex';
+                btnLoad.style.display = 'flex';
+                userNameDisplay.innerText = user.displayName + " さん";
+                userNameDisplay.style.display = 'block';
+            } else {
+                currentUser = null;
+                btnLogin.style.display = 'block';
+                btnLogout.style.display = 'none';
+                btnSave.style.display = 'none';
+                btnLoad.style.display = 'none';
+                userNameDisplay.style.display = 'none';
+            }
+        });
+
+        document.getElementById('btn-login').addEventListener('click', () => {
+            const provider = new GoogleAuthProvider();
+            signInWithPopup(auth, provider).catch(err => alert("ログインエラー: " + err.message));
+        });
+
+        document.getElementById('btn-logout').addEventListener('click', () => { signOut(auth); });
+
+        // --- ★変更：名前をつけてクラウドへ保存 ---
+        document.getElementById('btn-cloud-save').addEventListener('click', async () => {
+            if (!currentUser) return;
+            
+            // ユーザーに保存名を聞く
+            const defaultName = "ノート_" + new Date().toLocaleDateString('ja-JP').replace(/\//g, '');
+            const saveName = prompt("保存するデータの名前を入力してください：", defaultName);
+            if (!saveName) return; // キャンセルされたら中止
+
+            const workspace = document.getElementById('workspace');
+            const loadingOverlay = document.getElementById('loading-overlay');
+            
+            loadingOverlay.querySelector('div').innerText = 'クラウドに保存中...';
+            loadingOverlay.style.display = 'flex';
+            
+            try {
+                const elements = Array.from(workspace.querySelectorAll('.canvas-element')).map(el => {
+                    const isText = el.classList.contains('text-wrapper');
+                    const isHighlight = el.classList.contains('highlight-box');
+                    return {
+                        type: isText ? 'text' : (isHighlight ? 'highlight' : 'mask'),
+                        left: el.style.left, top: el.style.top, width: el.style.width, height: el.style.height,
+                        content: isText ? el.querySelector('.text-content').innerHTML : null,
+                        fontSize: isText ? el.style.fontSize : null, color: isText ? el.style.color : null,
+                        backgroundColor: isHighlight ? el.style.backgroundColor : null
+                    };
+                });
+                
+                const canvasDataArray = window.currentCanvasStates || [];
+                const timestamp = new Date().getTime();
+
+                const payload = {
+                    name: saveName, // ★名前を一緒に保存
+                    elements: elements,
+                    canvasDataArray: canvasDataArray,
+                    timestamp: timestamp
+                };
+
+                // ★変更：addDocを使って、どんどん新しいファイルとして追加していく
+                await addDoc(collection(db, "users", currentUser.uid, "saves"), payload);
+                alert(`「${saveName}」としてクラウド保存しました！`);
+            } catch (e) {
+                console.error(e);
+                alert("保存エラー: データが大きすぎるか通信エラーです。\n" + e.message);
+            } finally {
+                loadingOverlay.style.display = 'none';
+            }
+        });
+
+        // --- ★変更：保存データ一覧を開く ---
+        document.getElementById('btn-cloud-load').addEventListener('click', async () => {
+            if (!currentUser) return;
+            
+            const workspace = document.getElementById('workspace');
+            const uploadedImage = document.getElementById('uploaded-image');
+            
+            if (workspace.querySelectorAll('.pdf-page').length === 0 && uploadedImage.style.display === 'none') {
+                alert("⚠️ 復元する前に、ベースとなる「同じPDFや画像ファイル」をアップロードしておいてください！");
+                return;
+            }
+
+            const loadingOverlay = document.getElementById('loading-overlay');
+            loadingOverlay.querySelector('div').innerText = 'データ一覧を取得中...';
+            loadingOverlay.style.display = 'flex';
+            
+            try {
+                // 保存したデータを新しい順で取得
+                const q = query(collection(db, "users", currentUser.uid, "saves"), orderBy("timestamp", "desc"));
+                const querySnapshot = await getDocs(q);
+                
+                const listEl = document.getElementById('save-data-list');
+                listEl.innerHTML = '';
+                
+                if (querySnapshot.empty) {
+                    listEl.innerHTML = '<li style="text-align:center; color:#888; cursor:default;">保存されたデータはありません</li>';
+                } else {
+                    querySnapshot.forEach((docSnap) => {
+                        const data = docSnap.data();
+                        const li = document.createElement('li');
+                        
+                        const nameSpan = document.createElement('span');
+                        nameSpan.className = 'save-name';
+                        nameSpan.innerText = data.name || "名称未設定";
+                        
+                        const dateSpan = document.createElement('span');
+                        dateSpan.className = 'save-date';
+                        dateSpan.innerText = new Date(data.timestamp).toLocaleString('ja-JP');
+                        
+                        li.appendChild(nameSpan);
+                        li.appendChild(dateSpan);
+                        
+                        // リストをクリックした時の復元処理
+                        li.onclick = () => {
+                            document.getElementById('load-modal-overlay').style.display = 'none';
+                            loadDataToWorkspace(data);
+                        };
+                        listEl.appendChild(li);
+                    });
+                }
+                
+                document.getElementById('load-modal-overlay').style.display = 'flex';
+
+            } catch (e) {
+                console.error(e);
+                alert("一覧の取得に失敗しました。\n" + e.message);
+            } finally {
+                loadingOverlay.style.display = 'none';
+            }
+        });
+
+        // モーダルを閉じるボタン
+        document.getElementById('btn-close-modal').addEventListener('click', () => {
+            document.getElementById('load-modal-overlay').style.display = 'none';
+        });
+
+        // データを画面に復元する関数
+        function loadDataToWorkspace(data) {
+            const workspace = document.getElementById('workspace');
+            workspace.querySelectorAll('.canvas-element').forEach(el => el.remove());
+            if (window.deselectCurrent) window.deselectCurrent();
+            
+            data.elements.forEach(elData => {
+                if (elData.type === 'mask') window.createMaskElement(elData.left, elData.top, elData.width, elData.height);
+                else if (elData.type === 'highlight') window.createHighlightElement(elData.left, elData.top, elData.width, elData.height, elData.backgroundColor);
+                else window.createTextElement(elData.left, elData.top, elData.width, elData.height, elData.content, elData.fontSize, elData.color); 
+            });
+
+            window.currentCanvasStates = data.canvasDataArray || [];
+            const canvases = Array.from(workspace.querySelectorAll('.drawing-canvas'));
+            canvases.forEach((c, i) => {
+                const ctx = c.getContext('2d');
+                ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, c.width, c.height); ctx.restore();
+                if (window.currentCanvasStates[i]) {
+                    const img = new Image(); 
+                    img.onload = () => { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(img, 0, 0); ctx.restore(); };
+                    img.src = window.currentCanvasStates[i];
+                }
+            });
+            
+            window.historyArray = []; window.historyIndex = -1;
+            if (window.saveState) window.saveState();
+            alert(`「${data.name || 'データ'}」を復元しました！`);
+        }
+    </script>
+
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        const imageInput = document.getElementById('imageInput');
+        const uploadedImage = document.getElementById('uploaded-image');
+        const pdfContainer = document.getElementById('pdf-container');
+        const workspaceContainer = document.getElementById('workspace-container');
+        const workspaceWrapper = document.getElementById('workspace-wrapper');
+        const workspace = document.getElementById('workspace');
+        const drawingBox = document.getElementById('drawing-box');
+        const zoomText = document.getElementById('zoom-text');
+        const brushCursor = document.getElementById('brush-cursor');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        
+        const pdfSidebar = document.getElementById('pdf-sidebar');
+        const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
+        const pageNavigation = document.getElementById('page-navigation');
+        const pageInput = document.getElementById('page-input');
+        const pageTotal = document.getElementById('page-total');
+        
+        const toolRadios = document.querySelectorAll('input[name="currentTool"]');
+        const textSizeInput = document.getElementById('text-size-input'); 
+        const penWidthSlider = document.getElementById('pen-width-slider'); 
+        const penWidthInput = document.getElementById('pen-width-input'); 
+        const penOpacityInput = document.getElementById('pen-opacity');
+
+        const customSwatch = document.getElementById('custom-color-swatch');
+        const nativeColorPicker = document.getElementById('native-color-picker');
+
+        let currentTool = 'mask'; 
+        let action = null; 
+        let selectedElement = null; 
+        let currentHandle = null; 
+        let startX = 0, startY = 0;
+        let startRect = {}; 
+        let zoomLevel = 1.0; 
+        
+        window.historyArray = [];
+        window.historyIndex = -1;
+        let savedSelectionRange = null; 
+        let penPoints = [];
+        let totalPdfPages = 0;
+
+        let activeCanvas = null;
+        let activeCtx = null;
+        let activeCanvasIndex = null;
+        
+        window.currentCanvasStates = [];
+
+        const toolColors = { text: '#ff0000', highlight: '#ffff00', pen: '#ff0000' };
+
+        function hexToRgba(hex, alpha) {
+            const r = parseInt(hex.slice(1, 3), 16); const g = parseInt(hex.slice(3, 5), 16); const b = parseInt(hex.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+
+        document.addEventListener('contextmenu', function(e) {
+            if (e.target.closest('#workspace-container')) {
+                if (e.target.tagName.toLowerCase() !== 'span' && !e.target.closest('.textLayer')) { e.preventDefault(); }
+            }
+        });
+
+        document.addEventListener('pointercancel', function(e) {
+            if (action) {
+                if (action === 'draw_pen' && activeCtx) {
+                    activeCtx.closePath();
+                    if (activeCanvas && activeCanvasIndex !== null) { window.currentCanvasStates[activeCanvasIndex] = activeCanvas.toDataURL(); }
+                    window.saveState();
+                }
+                action = null; penPoints = []; activeCanvas = null; activeCtx = null; activeCanvasIndex = null;
+            }
+        });
+
+        document.addEventListener('selectionchange', () => {
+            const sel = window.getSelection(); 
+            if (sel.rangeCount > 0 && selectedElement && selectedElement.contains(sel.anchorNode)) {
+                savedSelectionRange = sel.getRangeAt(0).cloneRange(); 
+            }
+        });
+
+        function applyColorToSelection(color) {
+            if (currentTool === 'text' && selectedElement && selectedElement.classList.contains('text-wrapper')) {
+                if (savedSelectionRange && selectedElement.contains(savedSelectionRange.commonAncestorContainer)) {
+                    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(savedSelectionRange); document.execCommand('foreColor', false, color);
+                } else { selectedElement.style.color = color; }
+                window.saveState();
+            } else if (currentTool === 'highlight' && selectedElement && selectedElement.classList.contains('highlight-box')) {
+                selectedElement.style.backgroundColor = hexToRgba(color, penOpacityInput.value); window.saveState();
+            }
+        }
+
+        function updatePaletteUI() {
+            if (!['text', 'highlight', 'pen'].includes(currentTool)) return;
+            const currentColor = toolColors[currentTool];
+            let matchedNormal = false;
+            document.querySelectorAll('.swatch:not(.custom-swatch)').forEach(swatch => {
+                if (swatch.dataset.color === currentColor) { swatch.classList.add('active'); matchedNormal = true; } 
+                else { swatch.classList.remove('active'); }
+            });
+            if (!matchedNormal) { customSwatch.classList.add('active'); customSwatch.style.background = currentColor; } 
+            else { customSwatch.classList.remove('active'); customSwatch.style.background = ''; }
+        }
+
+        document.querySelectorAll('.swatch:not(.custom-swatch)').forEach(swatch => {
+            swatch.addEventListener('pointerdown', (e) => {
+                e.preventDefault(); if (!['text', 'highlight', 'pen'].includes(currentTool)) return;
+                const newColor = e.target.dataset.color; toolColors[currentTool] = newColor; 
+                updatePaletteUI(); applyColorToSelection(newColor); 
+            });
+        });
+
+        customSwatch.addEventListener('click', () => {
+            if (!['text', 'highlight', 'pen'].includes(currentTool)) return;
+            nativeColorPicker.value = toolColors[currentTool]; nativeColorPicker.click(); 
+        });
+
+        nativeColorPicker.addEventListener('input', (e) => {
+            const newColor = e.target.value; toolColors[currentTool] = newColor; updatePaletteUI(); applyColorToSelection(newColor); 
+        });
+
+        document.getElementById('btn-text-bold').addEventListener('pointerdown', (e) => {
+            e.preventDefault(); 
+            if (currentTool === 'text' && selectedElement && selectedElement.classList.contains('text-wrapper')) {
+                if (savedSelectionRange && selectedElement.contains(savedSelectionRange.commonAncestorContainer)) {
+                    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(savedSelectionRange);
+                }
+                document.execCommand('bold', false, null); window.saveState();
+            }
+        });
+
+        document.getElementById('btn-text-underline').addEventListener('pointerdown', (e) => {
+            e.preventDefault(); 
+            if (currentTool === 'text' && selectedElement && selectedElement.classList.contains('text-wrapper')) {
+                if (savedSelectionRange && selectedElement.contains(savedSelectionRange.commonAncestorContainer)) {
+                    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(savedSelectionRange);
+                }
+                document.execCommand('underline', false, null); window.saveState();
+            }
+        });
+
+        function updateToolbar() {
+            document.getElementById('prop-color').style.display = ['text', 'highlight', 'pen'].includes(currentTool) ? 'flex' : 'none';
+            document.getElementById('prop-text-style').style.display = (currentTool === 'text') ? 'flex' : 'none'; 
+            document.getElementById('prop-text-size').style.display = (currentTool === 'text') ? 'flex' : 'none';
+            document.getElementById('prop-pen-width').style.display = ['pen', 'eraser'].includes(currentTool) ? 'flex' : 'none';
+            document.getElementById('prop-opacity').style.display = ['highlight', 'pen'].includes(currentTool) ? 'flex' : 'none';
+            updatePaletteUI(); updateBrushCursor(); 
+        }
+
+        toolRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                currentTool = e.target.value; updateToolbar();
+                workspaceContainer.className = ''; workspaceContainer.classList.add('tool-' + currentTool);
+                if (selectedElement) window.deselectCurrent();
+            });
+        });
+        updateToolbar();
+
+        penWidthSlider.addEventListener('input', (e) => { penWidthInput.value = e.target.value; updateBrushCursor(); });
+        penWidthInput.addEventListener('input', (e) => {
+            let val = parseFloat(e.target.value); if (val < 0.5) val = 0.5; if (val > 100) val = 100;
+            penWidthSlider.value = val; updateBrushCursor();
+        });
+
+        function updateBrushCursor() {
+            if (['pen', 'eraser'].includes(currentTool)) {
+                const visualSize = parseFloat(penWidthInput.value) * zoomLevel;
+                brushCursor.style.width = visualSize + 'px'; brushCursor.style.height = visualSize + 'px';
+            }
+        }
+
+        function setZoom(newZoom) {
+            if (newZoom < 0.2) newZoom = 0.2; if (newZoom > 5.0) newZoom = 5.0; 
+            const containerW = workspaceContainer.clientWidth; const containerH = workspaceContainer.clientHeight;
+            const currentMarginLeft = parseFloat(workspaceWrapper.style.marginLeft) || 0; const currentMarginTop = parseFloat(workspaceWrapper.style.marginTop) || 0;
+            const centerX = (workspaceContainer.scrollLeft + containerW / 2 - currentMarginLeft) / zoomLevel;
+            const centerY = (workspaceContainer.scrollTop + containerH / 2 - currentMarginTop) / zoomLevel;
+
+            zoomLevel = newZoom; workspace.style.transform = `scale(${zoomLevel})`; zoomText.innerText = Math.round(zoomLevel * 100) + '%';
+            
+            const scaledW = workspace.offsetWidth * zoomLevel; const scaledH = workspace.offsetHeight * zoomLevel;
+            workspaceWrapper.style.width = scaledW + 'px'; workspaceWrapper.style.height = scaledH + 'px';
+            
+            const newMarginLeft = Math.max(0, (containerW - scaledW) / 2); const newMarginTop = Math.max(0, (containerH - scaledH) / 2);
+            workspaceWrapper.style.marginLeft = newMarginLeft + 'px'; workspaceWrapper.style.marginTop = newMarginTop + 'px';
+            
+            workspaceContainer.scrollLeft = (centerX * zoomLevel) + newMarginLeft - (containerW / 2);
+            workspaceContainer.scrollTop = (centerY * zoomLevel) + newMarginTop - (containerH / 2);
+            updateBrushCursor(); 
+        }
+
+        window.addEventListener('resize', () => { if(uploadedImage.src || totalPdfPages > 0) setZoom(zoomLevel); });
+
+        document.getElementById('btn-zoom-in').addEventListener('click', () => setZoom(zoomLevel + 0.1));
+        document.getElementById('btn-zoom-out').addEventListener('click', () => setZoom(zoomLevel - 0.1));
+        document.getElementById('btn-zoom-reset').addEventListener('click', () => setZoom(1.0));
+
+        window.deselectCurrent = function() {
+            if (selectedElement) { selectedElement.classList.remove('selected'); selectedElement = null; savedSelectionRange = null; }
+        }
+
+        window.saveState = function() {
+            const elements = Array.from(workspace.querySelectorAll('.canvas-element')).map(el => {
+                const isText = el.classList.contains('text-wrapper'); const isHighlight = el.classList.contains('highlight-box');
+                return {
+                    type: isText ? 'text' : (isHighlight ? 'highlight' : 'mask'),
+                    left: el.style.left, top: el.style.top, width: el.style.width, height: el.style.height,
+                    content: isText ? el.querySelector('.text-content').innerHTML : null, fontSize: isText ? el.style.fontSize : null, color: isText ? el.style.color : null, backgroundColor: isHighlight ? el.style.backgroundColor : null
+                };
+            });
+            const canvasDataArray = [...window.currentCanvasStates];
+            window.historyArray = window.historyArray.slice(0, window.historyIndex + 1); window.historyArray.push({ elements, canvasDataArray }); window.historyIndex++;
+        }
+
+        function restoreState(index) {
+            if (index < 0 || index >= window.historyArray.length) return;
+            workspace.querySelectorAll('.canvas-element').forEach(el => el.remove()); window.deselectCurrent();
+            const state = window.historyArray[index];
+            state.elements.forEach(data => {
+                if (data.type === 'mask') window.createMaskElement(data.left, data.top, data.width, data.height);
+                else if (data.type === 'highlight') window.createHighlightElement(data.left, data.top, data.width, data.height, data.backgroundColor);
+                else window.createTextElement(data.left, data.top, data.width, data.height, data.content, data.fontSize, data.color); 
+            });
+            
+            window.currentCanvasStates = [...state.canvasDataArray];
+            const canvases = Array.from(workspace.querySelectorAll('.drawing-canvas'));
+            
+            canvases.forEach((c, i) => {
+                const ctx = c.getContext('2d');
+                ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, c.width, c.height); ctx.restore();
+                if (window.currentCanvasStates[i]) {
+                    const img = new Image(); 
+                    img.onload = () => { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(img, 0, 0); ctx.restore(); };
+                    img.src = window.currentCanvasStates[i];
+                }
+            });
+        }
+
+        window.createMaskElement = function(left, top, width, height) {
+            const mask = document.createElement('div'); mask.className = 'canvas-element mask';
+            mask.style.left = left; mask.style.top = top; mask.style.width = width; mask.style.height = height;
+            addResizeHandles(mask); workspace.appendChild(mask); return mask;
+        }
+
+        window.createHighlightElement = function(left, top, width, height, bgColor) {
+            const box = document.createElement('div'); box.className = 'canvas-element highlight-box';
+            box.style.left = left; box.style.top = top; box.style.width = width; box.style.height = height;
+            box.style.backgroundColor = bgColor; addResizeHandles(box); workspace.appendChild(box); return box;
+        }
+
+        window.createTextElement = function(left, top, width, height, content = '', fontSize = '20px', color = '#ff0000') {
+            const wrapper = document.createElement('div'); wrapper.className = 'canvas-element text-wrapper';
+            wrapper.style.left = left; wrapper.style.top = top;
+            if (width) wrapper.style.width = width; if (height) wrapper.style.height = height;
+            wrapper.style.fontSize = fontSize; wrapper.style.color = color; 
+            const textContent = document.createElement('div'); textContent.className = 'text-content'; textContent.contentEditable = "true"; textContent.innerHTML = content;
+            wrapper.appendChild(textContent); addResizeHandles(wrapper); workspace.appendChild(wrapper);
+            textContent.addEventListener('blur', () => { if (textContent.innerText.trim() === '') wrapper.remove(); else window.saveState(); });
+            return wrapper;
+        }
+
+        function addResizeHandles(element) {
+            ['nw', 'ne', 'sw', 'se'].forEach(pos => { const handle = document.createElement('div'); handle.className = `resize-handle handle-${pos}`; handle.dataset.pos = pos; element.appendChild(handle); });
+        }
+
+        const textSizeBtn = document.getElementById('text-size-btn');
+        const textSizeList = document.getElementById('text-size-list');
+        const textSizeItems = textSizeList.querySelectorAll('li');
+
+        textSizeBtn.addEventListener('click', (e) => { e.stopPropagation(); textSizeList.style.display = textSizeList.style.display === 'flex' ? 'none' : 'flex'; });
+        textSizeItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation(); const val = e.target.dataset.val; textSizeInput.value = val;
+                textSizeList.style.display = 'none'; textSizeInput.dispatchEvent(new Event('input'));
+            });
+        });
+        document.addEventListener('click', () => { textSizeList.style.display = 'none'; });
+
+        function changeGlobalTextSize(delta) {
+            let currentSize = parseInt(textSizeInput.value) || 20; let newSize = currentSize + delta; if (newSize < 10) newSize = 10; 
+            textSizeInput.value = newSize;
+            if (selectedElement && selectedElement.classList.contains('text-wrapper')) { selectedElement.style.fontSize = newSize + 'px'; window.saveState(); }
+        }
+        document.getElementById('btn-text-size-up').addEventListener('click', () => changeGlobalTextSize(1));
+        document.getElementById('btn-text-size-down').addEventListener('click', () => changeGlobalTextSize(-1));
+
+        document.getElementById('btn-undo').addEventListener('click', () => { 
+            if (window.historyIndex > 0) { window.historyIndex--; restoreState(window.historyIndex); } 
+            else if (window.historyIndex === 0) { 
+                window.historyIndex--; 
+                workspace.querySelectorAll('.canvas-element').forEach(e => e.remove()); 
+                workspace.querySelectorAll('.drawing-canvas').forEach((c, i) => { 
+                    const ctx = c.getContext('2d'); ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,c.width,c.height); ctx.restore(); 
+                    window.currentCanvasStates[i] = null; 
+                }); 
+                window.deselectCurrent(); 
+            } 
+        });
+        document.getElementById('btn-redo').addEventListener('click', () => { if (window.historyIndex < window.historyArray.length - 1) { window.historyIndex++; restoreState(window.historyIndex); } });
+        document.getElementById('btn-delete').addEventListener('click', () => { if (selectedElement) { selectedElement.remove(); window.deselectCurrent(); window.saveState(); } });
+        
+        document.getElementById('btn-clear-all').addEventListener('click', () => { 
+            if (confirm('すべて削除しますか？（手書きも消えます）')) { 
+                workspace.querySelectorAll('.canvas-element').forEach(e => e.remove()); 
+                workspace.querySelectorAll('.drawing-canvas').forEach((c, i) => {
+                    const ctx = c.getContext('2d'); ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,c.width,c.height); ctx.restore();
+                    window.currentCanvasStates[i] = null; 
+                });
+                window.deselectCurrent(); window.saveState(); 
+            } 
+        });
+
+        penOpacityInput.addEventListener('input', (e) => {
+            if (selectedElement && selectedElement.classList.contains('highlight-box')) { selectedElement.style.backgroundColor = hexToRgba(toolColors['highlight'], e.target.value); window.saveState(); }
+        });
+
+        textSizeInput.addEventListener('input', (e) => {
+            const newSize = parseInt(e.target.value); 
+            if (newSize && selectedElement && selectedElement.classList.contains('text-wrapper')) { selectedElement.style.fontSize = newSize + 'px'; window.saveState(); }
+        });
+
+        function initWorkspace(isPdf = false) {
+            workspace.querySelectorAll('.canvas-element').forEach(e => e.remove());
+            window.deselectCurrent(); window.historyArray = []; window.historyIndex = -1; window.currentCanvasStates = [];
+            
+            setTimeout(() => {
+                const dpr = window.devicePixelRatio || 1;
+                
+                if (!isPdf) {
+                    let drawCanvas = workspace.querySelector('.drawing-canvas');
+                    if (!drawCanvas) {
+                        drawCanvas = document.createElement('canvas');
+                        drawCanvas.className = 'drawing-canvas';
+                        drawCanvas.style.position = 'absolute'; drawCanvas.style.top = '0'; drawCanvas.style.left = '0';
+                        drawCanvas.style.pointerEvents = 'none'; drawCanvas.style.zIndex = '2';
+                        workspace.appendChild(drawCanvas);
+                    }
+                    drawCanvas.width = workspace.offsetWidth * dpr; drawCanvas.height = workspace.offsetHeight * dpr;
+                    drawCanvas.style.width = workspace.offsetWidth + 'px'; drawCanvas.style.height = workspace.offsetHeight + 'px';
+                    const ctx = drawCanvas.getContext('2d', { willReadFrequently: true });
+                    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.scale(dpr, dpr);
+                    ctx.clearRect(0, 0, workspace.offsetWidth, workspace.offsetHeight);
+                }
+                
+                workspace.querySelectorAll('.drawing-canvas').forEach((c, i) => {
+                    c.dataset.canvasIndex = i;
+                    window.currentCanvasStates[i] = null;
+                });
+                
+                setZoom(1.0);
+            }, 50);
+        }
+
+        pageInput.addEventListener('change', () => {
+            let p = parseInt(pageInput.value);
+            if (p < 1) p = 1; if (p > totalPdfPages) p = totalPdfPages;
+            pageInput.value = p;
+            const targetPage = document.getElementById(`pdf-page-${p}`);
+            if (targetPage) { workspaceContainer.scrollTop = (targetPage.offsetTop * zoomLevel); }
+        });
+
+        workspaceContainer.addEventListener('scroll', () => {
+            if (pdfContainer.style.display !== 'block') return;
+            const containerCenter = (workspaceContainer.scrollTop + workspaceContainer.clientHeight / 2) / zoomLevel;
+            let currentP = 1;
+            document.querySelectorAll('.pdf-page').forEach(p => {
+                const top = p.offsetTop; const bottom = top + p.offsetHeight;
+                if (containerCenter >= top && containerCenter <= bottom) { currentP = parseInt(p.dataset.page); }
+            });
+            pageInput.value = currentP;
+            document.querySelectorAll('.pdf-thumb').forEach(t => t.classList.remove('active'));
+            const activeThumb = document.querySelector(`.pdf-thumb[data-page="${currentP}"]`);
+            if (activeThumb) { activeThumb.classList.add('active'); activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+        });
+
+        let isSidebarOpen = false;
+        btnToggleSidebar.addEventListener('click', () => {
+            isSidebarOpen = !isSidebarOpen;
+            pdfSidebar.style.display = isSidebarOpen ? 'flex' : 'none';
+        });
+
+        imageInput.addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            pdfSidebar.innerHTML = ''; btnToggleSidebar.style.display = 'none'; pageNavigation.style.display = 'none';
+            isSidebarOpen = false; pdfSidebar.style.display = 'none';
+            workspace.querySelectorAll('.drawing-canvas').forEach(c => c.remove());
+            
+            if (file.type === 'application/pdf') {
+                uploadedImage.style.display = 'none'; pdfContainer.style.display = 'block'; 
+                loadingOverlay.querySelector('div').innerText = 'PDFを読み込み中...'; loadingOverlay.style.display = 'flex';
+                
+                try {
+                    const arrayBuffer = await file.arrayBuffer(); const pdf = await pdfjsLib.getDocument(arrayBuffer).promise; 
+                    pdfContainer.innerHTML = ''; 
+                    
+                    totalPdfPages = pdf.numPages; pageTotal.innerText = totalPdfPages; pageInput.max = totalPdfPages; pageInput.value = 1;
+                    btnToggleSidebar.style.display = 'block'; pageNavigation.style.display = 'flex';
+
+                    const page1 = await pdf.getPage(1); const viewport1 = page1.getViewport({ scale: 1.0 });
+                    const containerW = workspaceContainer.clientWidth; const baseScale = (containerW * 0.9) / viewport1.width;
+
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i); const viewport = page.getViewport({ scale: baseScale });
+                        
+                        const pageDiv = document.createElement('div'); pageDiv.className = 'pdf-page'; pageDiv.id = `pdf-page-${i}`; pageDiv.dataset.page = i;
+                        pageDiv.style.width = viewport.width + 'px'; pageDiv.style.height = viewport.height + 'px';
+                        
+                        const canvas = document.createElement('canvas'); canvas.width = viewport.width; canvas.height = viewport.height; canvas.style.display = 'block'; pageDiv.appendChild(canvas);
+                        const textLayerDiv = document.createElement('div'); textLayerDiv.className = 'textLayer'; textLayerDiv.style.width = viewport.width + 'px'; textLayerDiv.style.height = viewport.height + 'px'; textLayerDiv.style.setProperty('--scale-factor', viewport.scale); pageDiv.appendChild(textLayerDiv);
+                        
+                        const drawCanvas = document.createElement('canvas');
+                        drawCanvas.className = 'drawing-canvas';
+                        drawCanvas.style.position = 'absolute'; drawCanvas.style.top = '0'; drawCanvas.style.left = '0';
+                        drawCanvas.style.pointerEvents = 'none'; drawCanvas.style.zIndex = '2';
+                        
+                        const dpr = window.devicePixelRatio || 1;
+                        drawCanvas.width = viewport.width * dpr; drawCanvas.height = viewport.height * dpr;
+                        drawCanvas.style.width = viewport.width + 'px'; drawCanvas.style.height = viewport.height + 'px';
+                        pageDiv.appendChild(drawCanvas);
+                        
+                        const dCtx = drawCanvas.getContext('2d', { willReadFrequently: true });
+                        dCtx.setTransform(1, 0, 0, 1, 0, 0); dCtx.scale(dpr, dpr);
+
+                        pdfContainer.appendChild(pageDiv);
+                        
+                        await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
+                        const textContent = await page.getTextContent(); pdfjsLib.renderTextLayer({ textContentSource: textContent, container: textLayerDiv, viewport: viewport, textDivs: [] });
+
+                        const thumbDiv = document.createElement('div'); thumbDiv.className = 'pdf-thumb'; if (i === 1) thumbDiv.classList.add('active');
+                        thumbDiv.dataset.page = i; thumbDiv.innerHTML = `<span>Page ${i}</span>`;
+                        const thumbScale = 150 / viewport1.width; const thumbViewport = page.getViewport({ scale: thumbScale });
+                        const thumbCanvas = document.createElement('canvas'); thumbCanvas.width = thumbViewport.width; thumbCanvas.height = thumbViewport.height;
+                        thumbDiv.insertBefore(thumbCanvas, thumbDiv.firstChild); pdfSidebar.appendChild(thumbDiv);
+                        page.render({ canvasContext: thumbCanvas.getContext('2d'), viewport: thumbViewport });
+                        
+                        thumbDiv.addEventListener('click', () => { pageInput.value = i; pageInput.dispatchEvent(new Event('change')); });
+                    }
+                    loadingOverlay.style.display = 'none'; initWorkspace(true);
+                } catch (error) { 
+                    console.error("PDFの読み込みに失敗:", error); loadingOverlay.style.display = 'none'; alert('PDFの読み込みに失敗しました。');
+                }
+            } 
+            else {
+                pdfContainer.style.display = 'none'; const reader = new FileReader();
+                reader.onload = function(event) {
+                    const tempImg = new Image();
+                    tempImg.onload = function() {
+                        const containerW = workspaceContainer.clientWidth; const finalScale = (containerW * 0.72) / tempImg.naturalWidth;
+                        uploadedImage.style.width = (tempImg.naturalWidth * finalScale) + 'px'; uploadedImage.style.height = (tempImg.naturalHeight * finalScale) + 'px';
+                        uploadedImage.src = tempImg.src; uploadedImage.style.display = 'block';
+                        initWorkspace(false);
+                    };
+                    tempImg.src = event.target.result;
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        workspaceContainer.addEventListener('pointerdown', function(e) {
+            if (currentTool === 'view') {
+                if (e.target.tagName.toLowerCase() === 'span' && e.target.closest('.textLayer')) return; 
+                action = 'pan'; startX = e.clientX; startY = e.clientY; startRect = { scrollLeft: workspaceContainer.scrollLeft, scrollTop: workspaceContainer.scrollTop }; 
+                e.preventDefault(); return;
+            }
+            if (!e.target.closest('#workspace')) return;
+            const rect = workspace.getBoundingClientRect(); const mouseX = (e.clientX - rect.left) / zoomLevel; const mouseY = (e.clientY - rect.top) / zoomLevel;
+
+            if (e.target.classList.contains('resize-handle')) {
+                action = 'resize'; selectedElement = e.target.parentElement; currentHandle = e.target.dataset.pos; 
+                startX = mouseX; startY = mouseY;
+                startRect = { left: parseFloat(selectedElement.style.left), top: parseFloat(selectedElement.style.top), width: parseFloat(selectedElement.style.width || selectedElement.offsetWidth), height: parseFloat(selectedElement.style.height || selectedElement.offsetHeight) };
+                e.preventDefault(); e.stopPropagation(); return;
+            }
+
+            const clickedTextContent = e.target.closest('.text-content');
+            if (clickedTextContent) {
+                if (selectedElement !== clickedTextContent.parentElement) { 
+                    window.deselectCurrent(); 
+                    selectedElement = clickedTextContent.parentElement; 
+                    selectedElement.classList.add('selected'); 
+                }
+                textSizeInput.value = parseInt(selectedElement.style.fontSize); 
+                e.stopPropagation(); 
+                return; 
+            }
+
+            const draggableTarget = e.target.closest('.mask, .text-wrapper, .highlight-box');
+            if (draggableTarget && !['pen', 'eraser'].includes(currentTool)) {
+                action = 'move'; 
+                window.deselectCurrent(); 
+                selectedElement = draggableTarget; 
+                selectedElement.classList.add('selected'); 
+                if (selectedElement.classList.contains('text-wrapper')) textSizeInput.value = parseInt(selectedElement.style.fontSize);
+                startX = mouseX; startY = mouseY; 
+                startRect = { left: parseFloat(selectedElement.style.left), top: parseFloat(selectedElement.style.top) }; 
+                e.preventDefault(); e.stopPropagation(); 
+                return;
+            }
+            
+            window.deselectCurrent();
+            
+            if (currentTool === 'mask' || currentTool === 'highlight') {
+                action = 'draw'; startX = mouseX; startY = mouseY;
+                drawingBox.style.left = startX + 'px'; drawingBox.style.top = startY + 'px';
+                drawingBox.style.width = '0px'; drawingBox.style.height = '0px'; drawingBox.style.display = 'block';
+            } else if (currentTool === 'text') {
+                const currentFontSize = textSizeInput.value + 'px'; const currentColor = toolColors['text']; 
+                const newText = window.createTextElement(mouseX + 'px', mouseY + 'px', '150px', '50px', '', currentFontSize, currentColor);
+                selectedElement = newText; newText.classList.add('selected'); setTimeout(() => { newText.querySelector('.text-content').focus(); }, 10);
+            } else if (currentTool === 'pen' || currentTool === 'eraser') {
+                action = 'draw_pen'; 
+                const page = e.target.closest('.pdf-page'); activeCanvas = page ? page.querySelector('.drawing-canvas') : workspace.querySelector('.drawing-canvas');
+                if (!activeCanvas) return;
+                
+                activeCanvasIndex = activeCanvas.dataset.canvasIndex; 
+                activeCtx = activeCanvas.getContext('2d');
+                const canvasRect = activeCanvas.getBoundingClientRect();
+                const localX = (e.clientX - canvasRect.left) / zoomLevel; const localY = (e.clientY - canvasRect.top) / zoomLevel;
+
+                penPoints = [{x: localX, y: localY}]; 
+                activeCtx.beginPath(); activeCtx.moveTo(localX, localY); activeCtx.lineWidth = parseFloat(penWidthInput.value); activeCtx.lineCap = 'round'; activeCtx.lineJoin = 'round';
+                if (currentTool === 'pen') { activeCtx.globalCompositeOperation = 'source-over'; activeCtx.strokeStyle = hexToRgba(toolColors['pen'], penOpacityInput.value); } 
+                else { activeCtx.globalCompositeOperation = 'destination-out'; activeCtx.strokeStyle = 'rgba(0,0,0,1)'; }
+                activeCtx.lineTo(localX + 0.01, localY + 0.01); activeCtx.stroke();
+            }
+        });
+
+        document.addEventListener('pointermove', function(e) {
+            if (['pen', 'eraser'].includes(currentTool) && e.target.closest('#workspace-container')) {
+                brushCursor.style.display = 'block'; brushCursor.style.left = e.clientX + 'px'; brushCursor.style.top = e.clientY + 'px';
+            } else { brushCursor.style.display = 'none'; }
+
+            if (!action) return;
+            if (action === 'pan') {
+                const dx = e.clientX - startX; const dy = e.clientY - startY;
+                workspaceContainer.scrollLeft = startRect.scrollLeft - dx; workspaceContainer.scrollTop = startRect.scrollTop - dy; return;
+            }
+            const rect = workspace.getBoundingClientRect(); let currentX = Math.max(0, Math.min((e.clientX - rect.left) / zoomLevel, workspace.offsetWidth)); let currentY = Math.max(0, Math.min((e.clientY - rect.top) / zoomLevel, workspace.offsetHeight));
+            
+            if (action === 'draw') {
+                drawingBox.style.width = Math.abs(currentX - startX) + 'px'; drawingBox.style.height = Math.abs(currentY - startY) + 'px';
+                drawingBox.style.left = Math.min(currentX, startX) + 'px'; drawingBox.style.top = Math.min(currentY, startY) + 'px';
+            } else if (action === 'draw_pen' && activeCanvas && activeCtx) {
+                const canvasRect = activeCanvas.getBoundingClientRect();
+                const localX = (e.clientX - canvasRect.left) / zoomLevel; const localY = (e.clientY - canvasRect.top) / zoomLevel;
+
+                penPoints.push({x: localX, y: localY});
+                if (penPoints.length >= 3) {
+                    const last2 = penPoints[penPoints.length - 3]; const last1 = penPoints[penPoints.length - 2]; const curr = penPoints[penPoints.length - 1];
+                    const midX = (last1.x + curr.x) / 2; const midY = (last1.y + curr.y) / 2;
+                    activeCtx.beginPath(); activeCtx.moveTo(last2.x, last2.y); activeCtx.quadraticCurveTo(last1.x, last1.y, midX, midY); activeCtx.stroke();
+                    penPoints[penPoints.length - 2] = {x: midX, y: midY};
+                }
+            } else if (action === 'move' && selectedElement) {
+                selectedElement.style.left = (startRect.left + (currentX - startX)) + 'px'; selectedElement.style.top = (startRect.top + (currentY - startY)) + 'px';
+            } else if (action === 'resize' && selectedElement) {
+                const dx = currentX - startX; const dy = currentY - startY; let newLeft = startRect.left, newTop = startRect.top, newWidth = startRect.width, newHeight = startRect.height;
+                if (currentHandle.includes('e')) newWidth += dx; if (currentHandle.includes('s')) newHeight += dy; 
+                if (currentHandle.includes('w')) { newLeft += dx; newWidth -= dx; } if (currentHandle.includes('n')) { newTop += dy; newHeight -= dy; }
+                if (newWidth > 30) { selectedElement.style.width = newWidth + 'px'; selectedElement.style.left = newLeft + 'px'; }
+                if (newHeight > 30) { selectedElement.style.height = newHeight + 'px'; selectedElement.style.top = newTop + 'px'; }
+            }
+        });
+
+        document.addEventListener('pointerup', function(e) {
+            if (!action) return;
+            let stateChanged = false;
+            if (action === 'pan') { action = null; return; }
+            if (action === 'draw') {
+                drawingBox.style.display = 'none';
+                if (parseFloat(drawingBox.style.width) >= 10 && parseFloat(drawingBox.style.height) >= 10) {
+                    if (currentTool === 'highlight') {
+                        const bgColor = hexToRgba(toolColors['highlight'], penOpacityInput.value);
+                        const hl = window.createHighlightElement(drawingBox.style.left, drawingBox.style.top, drawingBox.style.width, drawingBox.style.height, bgColor);
+                        window.deselectCurrent(); selectedElement = hl; selectedElement.classList.add('selected');
+                    } else {
+                        const mask = window.createMaskElement(drawingBox.style.left, drawingBox.style.top, drawingBox.style.width, drawingBox.style.height);
+                        window.deselectCurrent(); selectedElement = mask; selectedElement.classList.add('selected');
+                    }
+                    stateChanged = true;
+                }
+            } else if (action === 'draw_pen') { 
+                if (activeCtx) activeCtx.closePath(); 
+                if (activeCanvas && activeCanvasIndex !== null) {
+                    window.currentCanvasStates[activeCanvasIndex] = activeCanvas.toDataURL();
+                }
+                penPoints = []; activeCanvas = null; activeCtx = null; activeCanvasIndex = null; stateChanged = true; 
+            } 
+            else if (action === 'move' || action === 'resize') { stateChanged = true; }
+            action = null; if (stateChanged) window.saveState();
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if ((e.key === 'Delete' || e.key === 'Backspace') && selectedElement) {
+                if (!e.target.classList.contains('text-content')) { selectedElement.remove(); window.deselectCurrent(); window.saveState(); }
+            }
+        });
+        
+        workspaceContainer.addEventListener('pointerleave', () => { brushCursor.style.display = 'none'; });
+        document.addEventListener('pointerdown', function(e) {
+            if (!e.target.closest('#workspace') && !e.target.closest('#toolbar') && !e.target.closest('#controls-row') && !e.target.closest('#header-row') && selectedElement) window.deselectCurrent();
+        });
+
+        // ★書き出し（ダウンロード）ボタンの処理
+        document.getElementById('btn-download').addEventListener('click', async () => {
+            if (uploadedImage.style.display === 'none' && pdfContainer.style.display === 'none') { alert('先に画像かPDFをアップロードしてください。'); return; }
+            window.deselectCurrent(); brushCursor.style.display = 'none'; loadingOverlay.style.display = 'flex'; 
+            loadingOverlay.querySelector('div').innerText = 'ファイルを作成中...';
+            const originalZoom = zoomLevel; const originalScrollTop = workspaceContainer.scrollTop; const originalScrollLeft = workspaceContainer.scrollLeft;
+            setZoom(1.0); workspaceContainer.style.overflow = 'visible'; workspaceContainer.style.height = 'auto';
+            await new Promise(resolve => setTimeout(resolve, 300)); 
+
+            try {
+                if (uploadedImage.style.display === 'block') {
+                    const canvas = await html2canvas(workspace, { scale: 2, useCORS: true, backgroundColor: null });
+                    const link = document.createElement('a'); link.download = '暗記ノート_画像.png'; link.href = canvas.toDataURL('image/png'); link.click();
+                } else if (pdfContainer.style.display === 'block') {
+                    const { jsPDF } = window.jspdf; const pdf = new jsPDF('p', 'pt', 'a4'); 
+                    const canvas = await html2canvas(workspace, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+                    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                    const pdfWidth = pdf.internal.pageSize.getWidth(); const pdfHeight = pdf.internal.pageSize.getHeight();
+                    const imgProps = pdf.getImageProperties(imgData); const imgHeightInPdf = (imgProps.height * pdfWidth) / imgProps.width;
+                    let heightLeft = imgHeightInPdf; let position = 0; 
+                    
+                    pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeightInPdf); heightLeft -= pdfHeight;
+                    while (heightLeft > 0) {
+                        position = heightLeft - imgHeightInPdf; pdf.addPage();
+                        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeightInPdf); heightLeft -= pdfHeight;
+                    }
+                    pdf.save('暗記ノート_PDF.pdf');
+                }
+            } catch (error) { console.error("ダウンロードエラー:", error); alert("エラーが発生しました。"); } 
+            finally {
+                workspaceContainer.style.overflow = 'auto'; workspaceContainer.style.height = '800px';
+                setZoom(originalZoom); workspaceContainer.scrollTop = originalScrollTop; workspaceContainer.scrollLeft = originalScrollLeft;
+                loadingOverlay.style.display = 'none'; 
+            }
+        });
+
+    </script>
+</body>
+</html>
