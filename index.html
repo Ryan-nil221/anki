@@ -5,98 +5,281 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>暗記マスキング - 無料のスマホ・PC対応 暗記シート作成アプリ</title>
     <meta name="description" content="スマホやPCが赤シート代わりに！毎日の勉強を効率化する、インストール不要の無料学習ツール「暗記マスキング」。お手持ちのPDFや画像に黒塗りマスキング！蛍光ペンやテキスト追加もできて、そのまま保存可能！">
-    <meta name="keywords" content="暗記シート,暗記メーカー,PDF,黒塗り,無料,ブラウザ,スマホ対応,赤シート">
+    
+    <link rel="icon" type="image/png" href="favicon.png">
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0" />
 
     <style>
-        body { font-family: sans-serif; background-color: #f0f4f8; text-align: center; padding: 10px; padding-bottom: 200px; margin: 0; overflow: auto; }
+        /* --- モダンリセット & ベースレイアウト --- */
+        body { 
+            margin: 0; 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+            background-color: #f3f4f6; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            color: #374151; 
+        }
 
-        /* --- ヘッダーとログイン情報 --- */
-        #header-row { display: flex; justify-content: space-between; align-items: center; max-width: 98%; margin: 0 auto 10px; }
-        h1 { margin: 0; font-size: 24px; color: #333; }
-        #user-info { display: flex; align-items: center; gap: 10px; }
-        #user-name { font-size: 14px; font-weight: bold; color: #555; display: none; }
+        /* アイコンのベーススタイル */
+        .material-symbols-outlined {
+            font-size: 20px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
 
-        /* --- 編集ツールバー --- */
-        #toolbar { background-color: #ffffff; padding: 10px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 10px; align-items: center; }
-        .toolbar-row { display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; align-items: center; width: 100%; }
+        /* 塗りつぶしアイコン用のスタイル */
+        .icon-filled {
+            font-variation-settings: 'FILL' 1;
+        }
 
-        .tool-switch { display: flex; background-color: #e9ecef; border-radius: 5px; overflow: hidden; border: 1px solid #ccc; flex-wrap: wrap; }
-        .tool-switch label { padding: 8px 12px; cursor: pointer; font-weight: bold; transition: 0.2s; font-size: 14px; }
+        /* --- ヘッダー (上部固定・グローバルアクションのみ) --- */
+        #app-header { 
+            flex-shrink: 0; 
+            background: rgba(255, 255, 255, 0.95); 
+            backdrop-filter: blur(10px); 
+            border-bottom: 1px solid #e5e7eb; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05); 
+            z-index: 1000; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 12px; 
+            padding: 12px 20px;
+        }
+        
+        .header-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .header-title-group { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+        .header-brand { display: flex; align-items: center; gap: 8px; }
+        .header-logo { height: 26px; width: auto; object-fit: contain; }
+        h1 { margin: 0; font-size: 20px; font-weight: 800; color: #111827; letter-spacing: -0.5px; }
+        
+        .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        #user-info { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: #4b5563; }
+
+        /* --- ボタンデザイン --- */
+        .btn { 
+            padding: 8px 14px; 
+            font-size: 13px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            border-radius: 6px; 
+            display: inline-flex; 
+            align-items: center; 
+            gap: 6px; 
+            transition: all 0.2s ease; 
+            border: 1px solid transparent;
+            background-color: #ffffff;
+            color: #374151;
+            border-color: #d1d5db;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .btn:hover { background-color: #f9fafb; border-color: #9ca3af; }
+        .btn:active { transform: scale(0.97); }
+        .btn-icon { padding: 6px 10px; } 
+
+        .btn-primary { background-color: #3b82f6; color: white; border-color: #3b82f6; }
+        .btn-primary:hover { background-color: #2563eb; border-color: #2563eb; color: white; }
+        
+        .btn-danger { color: #ef4444; border-color: #fca5a5; background-color: #fef2f2; }
+        .btn-danger:hover { background-color: #fee2e2; border-color: #f87171; }
+
+        .btn-cloud { background-color: #fdf6e3; color: #b45309; border-color: #fde68a; }
+        .btn-cloud:hover { background-color: #fef3c7; border-color: #fcd34d; }
+
+        .custom-file-upload { display: inline-flex; cursor: pointer; }
+        #imageInput { display: none; }
+
+        /* --- フローティングツールバー (下部中央) --- */
+        #floating-tools-container {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            z-index: 2000;
+            pointer-events: none;
+        }
+
+        .tool-switch { 
+            display: inline-flex; 
+            background: rgba(255, 255, 255, 0.95); 
+            backdrop-filter: blur(10px);
+            border-radius: 100px; 
+            padding: 8px; 
+            gap: 6px;
+            border: 1px solid rgba(229, 231, 235, 0.8);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            pointer-events: auto;
+            align-items: center;
+        }
+        
+        .tool-switch label { 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 44px;
+            height: 44px;
+            cursor: pointer; 
+            border-radius: 50%;
+            color: #6b7280;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        .tool-switch label .material-symbols-outlined { font-size: 24px; }
+        
+        .tool-switch label::after, .btn[title]::after, .slider-label[title]::after {
+            content: attr(title);
+            position: absolute;
+            top: -35px;
+            background: rgba(17, 24, 39, 0.8);
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 4px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s, transform 0.2s;
+            transform: translateY(5px);
+            z-index: 5000;
+        }
+        .tool-switch label:hover::after { opacity: 1; transform: translateY(0); }
+        .tool-switch label:hover { background-color: #f3f4f6; color: #374151; }
         .tool-switch input[type="radio"] { display: none; }
-        .tool-switch input[type="radio"]:checked + label { background-color: #007bff; color: white; }
+        .tool-switch input[type="radio"]:checked + label { 
+            background-color: #3b82f6; 
+            color: white; 
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3); 
+            transform: translateY(-2px);
+        }
+        .tool-divider { width: 1px; height: 24px; background: #e5e7eb; margin: 0 4px; }
 
-        .prop-group { display: none; align-items: center; gap: 8px; padding-left: 10px; border-left: 2px solid #ccc; }
+        /* --- フローティングプロパティパネル --- */
+        #floating-properties {
+            display: none;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 10px 20px;
+            gap: 15px;
+            border: 1px solid rgba(229, 231, 235, 0.8);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+            pointer-events: auto;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .prop-group { display: none; align-items: center; gap: 8px; padding: 0 10px; border-left: 2px solid #e5e7eb; }
+        .prop-group:first-child { border-left: none; padding-left: 0; }
+        
+        .slider-label { color: #6b7280; position: relative; cursor: help; }
+        .slider-label:hover { color: #374151; }
+        .slider-label:hover::after { opacity: 1; transform: translateY(0); }
+
+        .mini-switch { display: inline-flex; background: #f3f4f6; border-radius: 8px; padding: 2px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e5e7eb; }
+        .mini-switch label { display: flex; justify-content: center; align-items: center; width: 32px; height: 32px; cursor: pointer; border-radius: 6px; color: #6b7280; transition: 0.2s; position: relative;}
+        .mini-switch label .material-symbols-outlined { font-size: 20px; }
+        .mini-switch label:hover { color: #111827; }
+        .mini-switch label:hover::after { opacity: 1; transform: translateY(0); }
+        .mini-switch input[type="radio"] { display: none; }
+        .mini-switch input[type="radio"]:checked + label { background: white; color: #3b82f6; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         
         .color-palette { display: flex; gap: 6px; align-items: center; }
-        .swatch { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid white; box-shadow: 0 0 0 1px #ccc; transition: 0.1s; }
-        .swatch:hover { transform: scale(1.1); }
-        .swatch.active { box-shadow: 0 0 0 2px #007bff; transform: scale(1.15); }
+        .swatch { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1); transition: 0.15s; }
+        .swatch:hover { transform: scale(1.15); }
+        .swatch.active { outline: 2px solid #3b82f6; outline-offset: 2px; transform: scale(1.15); }
         .swatch.custom-swatch { background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red); }
 
-        .combo-box { position: relative; display: inline-flex; align-items: center; border: 1px solid #ccc; border-radius: 4px; background: white; height: 30px; }
-        .combo-input { border: none; outline: none; width: 40px; text-align: center; background: transparent; font-size: 14px; font-family: sans-serif; }
+        .combo-box { position: relative; display: inline-flex; align-items: center; border: 1px solid #d1d5db; border-radius: 6px; background: white; height: 32px; overflow: hidden; }
+        .combo-input { border: none; outline: none; width: 40px; text-align: center; background: transparent; font-size: 13px; font-family: inherit; font-weight: 600; }
         .combo-input::-webkit-inner-spin-button, .combo-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-        .combo-input[type="number"] { -moz-appearance: textfield; }
         
-        .combo-dropdown-btn { border: none; background: #f0f0f0; cursor: pointer; padding: 0 6px; border-left: 1px solid #ccc; font-size: 10px; height: 100%; border-radius: 0 3px 3px 0; color: #555; }
-        .combo-dropdown-btn:hover { background: #e0e0e0; }
+        .combo-dropdown-btn { border: none; background: #f9fafb; cursor: pointer; padding: 0 4px; border-left: 1px solid #d1d5db; height: 100%; color: #6b7280; }
+        .combo-dropdown-btn:hover { background: #f3f4f6; }
         
-        .combo-list { position: absolute; top: calc(100% + 2px); left: 0; background: white; border: 1px solid #ccc; box-shadow: 0 4px 8px rgba(0,0,0,0.2); list-style: none; padding: 0; margin: 0; display: none; flex-direction: column; max-height: 200px; overflow-y: auto; z-index: 1000; width: 100%; border-radius: 4px; }
-        .combo-list li { padding: 8px 5px; cursor: pointer; font-size: 14px; text-align: center; border-bottom: 1px solid #eee; }
-        .combo-list li:last-child { border-bottom: none; }
-        .combo-list li:hover { background: #007bff; color: white; }
+        .combo-list { position: absolute; top: calc(100% + 4px); left: 0; background: white; border: 1px solid #e5e7eb; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); list-style: none; padding: 5px; margin: 0; display: none; flex-direction: column; max-height: 200px; overflow-y: auto; z-index: 2000; width: 100%; border-radius: 8px; box-sizing: border-box; }
+        .combo-list li { padding: 8px 5px; cursor: pointer; font-size: 13px; text-align: center; border-radius: 4px; font-weight: 600; color: #374151; }
+        .combo-list li:hover { background: #eff6ff; color: #3b82f6; }
 
-        .setting-select { height: 30px; border: 1px solid #ccc; border-radius: 4px; padding: 0 5px; font-size: 14px; cursor: pointer; background-color: white; }
-        .number-input { height: 30px; border: 1px solid #ccc; border-radius: 4px; padding: 0 5px; font-size: 14px; background-color: white; text-align: center; }
-        #pen-width-input { width: 50px; }
+        .number-input { height: 32px; border: 1px solid #d1d5db; border-radius: 6px; padding: 0 5px; font-size: 13px; background-color: white; text-align: center; font-weight: 600; width: 45px; }
+
+        /* --- 集中モード (UI非表示) 用スタイル --- */
+        .hideable-ui { transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease; }
+        body.focus-mode .hideable-ui { opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; }
         
-        .btn { padding: 8px 15px; font-size: 14px; cursor: pointer; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; display: flex; align-items: center; gap: 5px; font-weight: bold; }
-        .btn:hover { background-color: #e9e9e9; }
-        .btn:active { background-color: #ddd; }
-        .btn-icon { padding: 4px 8px; } 
-        .btn-danger { color: #d9534f; border-color: #d43f3a; }
-        .btn-danger:hover { background-color: #ffeeee; }
-        .btn-download { background-color: #e6f7ff; color: #0050b3; border-color: #91d5ff; }
-        .btn-download:hover { background-color: #bae0ff; }
+        #btn-focus-mode {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(229, 231, 235, 0.8);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            color: #6b7280;
+            cursor: pointer;
+            z-index: 3000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+        #btn-focus-mode:hover { background: #f3f4f6; color: #374151; transform: scale(1.05); }
 
-        .btn-cloud-save { background-color: #fff3cd; color: #856404; border-color: #ffeeba; }
-        .btn-cloud-save:hover { background-color: #ffe8a1; }
-        .btn-cloud-load { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
-        .btn-cloud-load:hover { background-color: #c3e6cb; }
+        /* --- メインワークスペース --- */
+        #main-area { flex-grow: 1; display: flex; position: relative; overflow: hidden; }
+        
+        #pdf-sidebar { width: 220px; height: 100%; background: #ffffff; border-right: 1px solid #e5e7eb; overflow-y: auto; display: none; flex-direction: column; align-items: center; padding: 20px 0; z-index: 10; box-shadow: 2px 0 8px rgba(0,0,0,0.02); }
+        .pdf-thumb { width: 80%; background: white; margin-bottom: 20px; border: 2px solid transparent; border-radius: 8px; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.1); transition: 0.2s; display: flex; flex-direction: column; align-items: center; padding-bottom: 8px; overflow: hidden; flex-shrink: 0; }
+        .pdf-thumb:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+        .pdf-thumb.active { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.3); }
+        .pdf-thumb canvas { width: 100%; height: auto; border-bottom: 1px solid #f3f4f6; margin-bottom: 8px; object-fit: contain; }
+        .pdf-thumb span { font-size: 12px; font-weight: 700; color: #4b5563; }
 
-        .slider-label { font-size: 12px; font-weight: bold; margin-right: 2px; }
-
-        /* --- ワークスペース周りレイアウト --- */
-        #main-area { display: flex; flex-direction: column; max-width: 98%; margin: 0 auto; } 
-        #controls-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; width: 100%; }
-        #left-controls { display: flex; align-items: center; gap: 10px; }
-        #btn-toggle-sidebar { font-size: 18px; padding: 4px 10px; }
-        #page-navigation { display: flex; align-items: center; gap: 5px; font-weight: bold; background: white; padding: 4px 10px; border-radius: 6px; border: 1px solid #ccc; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        #page-input { width: 40px; text-align: center; border: 1px solid #ccc; border-radius: 4px; padding: 2px; font-size: 14px; }
-        #zoom-controls { display: inline-flex; align-items: center; gap: 8px; background-color: #ffffff; padding: 6px 12px; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        #zoom-controls button { padding: 4px 10px; font-weight: bold; }
-        #zoom-text { font-weight: bold; width: 60px; text-align: center; font-size: 16px; }
-
-        #workspace-outer { display: flex; width: 100%; height: 800px; gap: 10px; }
-        #pdf-sidebar { width: 200px; height: 100%; background: #e0e0e0; border: 2px solid #aaa; border-radius: 4px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; padding: 10px 0; box-sizing: border-box; display: none; }
-        .pdf-thumb { width: 80%; background: white; margin-bottom: 15px; border: 2px solid transparent; border-radius: 4px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: 0.2s; display: flex; flex-direction: column; align-items: center; padding-bottom: 5px; }
-        .pdf-thumb:hover { transform: scale(1.05); }
-        .pdf-thumb.active { border-color: #007bff; box-shadow: 0 0 10px rgba(0,123,255,0.5); }
-        .pdf-thumb canvas { max-width: 100%; height: auto; border-bottom: 1px solid #eee; margin-bottom: 5px; }
-        .pdf-thumb span { font-size: 12px; font-weight: bold; color: #555; }
-
-        #workspace-container { flex: 1; height: 100%; overflow: auto; border: 2px solid #aaa; background-color: #cccccc; border-radius: 4px; position: relative; touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+        #workspace-outer { flex-grow: 1; position: relative; display: flex; overflow: hidden; background-color: #e5e7eb; }
+        #workspace-container { flex-grow: 1; overflow: auto; position: relative; touch-action: none; user-select: none; }
         #workspace-wrapper { position: relative; }
-        #workspace { position: relative; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.4); user-select: none; transform-origin: top left; background-color: white; }
-        #uploaded-image { display: block; max-width: none; max-height: none; -webkit-touch-callout: none !important; -webkit-user-drag: none; user-drag: none; }
+        #workspace { position: relative; display: inline-block; box-shadow: 0 8px 25px rgba(0,0,0,0.1); user-select: none; transform-origin: top left; background-color: white; border-radius: 4px; }
+        
+        .floating-ui { 
+            position: absolute; 
+            z-index: 100; 
+            background: rgba(255, 255, 255, 0.95); 
+            backdrop-filter: blur(8px); 
+            padding: 8px 12px; 
+            border-radius: 10px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08); 
+            border: 1px solid #e5e7eb; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+        }
+        #floating-top-left { top: 20px; left: 20px; }
+        #floating-bottom-right { bottom: 25px; right: 25px; }
+
+        #page-navigation { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 14px; color: #374151; }
+        #page-input { width: 40px; text-align: center; border: 1px solid #d1d5db; border-radius: 6px; padding: 4px; font-size: 14px; font-weight: 700; }
+        #zoom-text { font-weight: 700; width: 55px; text-align: center; font-size: 14px; color: #374151; }
+
+        #uploaded-image { display: block; max-width: none; max-height: none; -webkit-touch-callout: none !important; -webkit-user-drag: none; user-drag: none; border-radius: 4px; }
         #drawing-canvas { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 2; -webkit-touch-callout: none; }
         #pdf-container { display: none; -webkit-touch-callout: none; }
-        .pdf-page { position: relative; margin-bottom: 20px; background-color: white; box-shadow: 0 4px 8px rgba(0,0,0,0.1); -webkit-touch-callout: none; }
+        .pdf-page { position: relative; margin-bottom: 20px; background-color: white; box-shadow: 0 4px 8px rgba(0,0,0,0.05); -webkit-touch-callout: none; border-radius: 4px; overflow: hidden; }
         .textLayer { opacity: 0.2; pointer-events: none !important; } 
         .textLayer span { pointer-events: auto !important; -webkit-touch-callout: default !important; -webkit-user-select: text !important; user-select: text !important; cursor: text; }
 
@@ -109,169 +292,235 @@
 
         .combo-input, .number-input, .text-content { -webkit-user-select: text !important; user-select: text !important; -webkit-touch-callout: default !important; }
 
+        /* --- キャンバスエレメント --- */
         .canvas-element { position: absolute; box-sizing: border-box; }
-        .mask { background-color: black; cursor: pointer; transition: opacity 0.3s; z-index: 3; -webkit-touch-callout: none; }
+        
+        .mask { cursor: pointer; transition: opacity 0.3s; -webkit-touch-callout: none; border-radius: 2px; }
         .mask:not(.selected):hover { opacity: 0; }
-        .mask.selected { background-color: rgba(0, 0, 0, 0.7); outline: 2px solid #007bff; cursor: move; }
-        .highlight-box { cursor: pointer; mix-blend-mode: multiply; z-index: 3; -webkit-touch-callout: none; } 
-        .highlight-box.selected { outline: 2px dashed #007bff; cursor: move; }
-        .text-wrapper { min-width: 100px; min-height: 30px; font-size: 20px; padding: 8px; cursor: move; z-index: 4; -webkit-touch-callout: none; }
-        .text-wrapper.selected { outline: 2px solid #007bff; background-color: rgba(255, 255, 255, 0.6); }
-        .text-content { width: 100%; height: 100%; outline: none; word-wrap: break-word; overflow: hidden; pointer-events: none; }
-        .text-wrapper.selected .text-content { pointer-events: auto; cursor: text; }
-        .canvas-element.selected { z-index: 5; transition: none; }
-        .resize-handle { position: absolute; width: 15px; height: 15px; background-color: white; border: 2px solid #007bff; display: none; border-radius: 50%; }
-        .canvas-element.selected .resize-handle { display: block; }
-        .handle-nw { top: -8px; left: -8px; cursor: nwse-resize; }
-        .handle-ne { top: -8px; right: -8px; cursor: nesw-resize; }
-        .handle-sw { bottom: -8px; left: -8px; cursor: nesw-resize; }
-        .handle-se { bottom: -8px; right: -8px; cursor: nwse-resize; }
-        #drawing-box { position: absolute; border: 2px dashed red; background-color: rgba(255, 0, 0, 0.2); pointer-events: none; display: none; z-index: 10; }
+        
+        div.mask-rect { background-color: black; }
+        div.mask-rect.selected { background-color: rgba(0, 0, 0, 0.7); outline: 2px solid #3b82f6; cursor: move; }
+        
+        div.mask-freehand-wrapper { background-color: transparent; }
+        div.mask-freehand-wrapper svg { display: block; overflow: visible; }
+        div.mask-freehand-wrapper path { stroke: black; fill: none; stroke-linecap: round; stroke-linejoin: round; pointer-events: auto; cursor: pointer; transition: stroke 0.3s; }
+        div.mask-freehand-wrapper.selected { outline: 2px solid #3b82f6; cursor: move; }
+        div.mask-freehand-wrapper.selected path { stroke: rgba(0, 0, 0, 0.7); }
 
-        /* --- モーダル・オーバーレイ --- */
-        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 10000; }
-        .overlay-loading { color: white; font-size: 24px; font-weight: bold; flex-direction: column; }
+        .highlight-box { cursor: pointer; mix-blend-mode: multiply; -webkit-touch-callout: none; border-radius: 2px; } 
+        .highlight-box.selected { outline: 2px dashed #3b82f6; cursor: move; }
+        .text-wrapper { min-width: 100px; min-height: 30px; font-size: 20px; padding: 8px; cursor: move; -webkit-touch-callout: none; border-radius: 4px; }
+        .text-wrapper.selected { outline: 2px solid #3b82f6; background-color: rgba(255, 255, 255, 0.6); }
+        .text-content { width: 100%; height: 100%; outline: none; word-wrap: break-word; overflow: hidden; pointer-events: none; font-weight: 600; }
+        .text-wrapper.selected .text-content { pointer-events: auto; cursor: text; }
+        .canvas-element.selected { transition: none; }
         
-        #load-modal { background: white; padding: 20px; border-radius: 8px; max-width: 400px; width: 90%; text-align: left; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-        #load-modal h3 { margin-top: 0; margin-bottom: 15px; font-size: 18px; border-bottom: 2px solid #007bff; padding-bottom: 5px; }
-        #save-data-list { list-style: none; padding: 0; margin: 0 0 15px 0; max-height: 300px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px; }
+        .resize-handle { position: absolute; width: 10px; height: 10px; background-color: white; border: 2px solid #3b82f6; display: none; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+        .canvas-element.selected .resize-handle { display: block; }
+        .handle-nw { top: -6px; left: -6px; cursor: nwse-resize; }
+        .handle-ne { top: -6px; right: -6px; cursor: nesw-resize; }
+        .handle-sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
+        .handle-se { bottom: -6px; right: -6px; cursor: nwse-resize; }
+        #drawing-box { position: absolute; border: 2px dashed #ef4444; background-color: rgba(239, 68, 68, 0.1); pointer-events: none; display: none; z-index: 10; border-radius: 2px; }
+
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(17, 24, 39, 0.7); backdrop-filter: blur(4px); display: none; justify-content: center; align-items: center; z-index: 10000; }
+        .overlay-loading { color: white; font-size: 20px; font-weight: bold; flex-direction: column; gap: 10px; }
         
-        #save-data-list li { padding: 12px 10px; border-bottom: 1px solid #eee; transition: 0.2s; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        #load-modal { background: white; padding: 25px; border-radius: 12px; max-width: 450px; width: 90%; text-align: left; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2); }
+        #load-modal h3 { margin-top: 0; margin-bottom: 20px; font-size: 18px; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; color: #111827; }
+        #save-data-list { list-style: none; padding: 0; margin: 0 0 20px 0; max-height: 300px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; }
+        
+        #save-data-list li { padding: 12px 15px; border-bottom: 1px solid #e5e7eb; transition: 0.2s; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
         #save-data-list li:last-child { border-bottom: none; }
-        #save-data-list li:hover { background-color: #f0f8ff; }
+        #save-data-list li:hover { background-color: #f9fafb; }
         .save-info { display: flex; flex-direction: column; gap: 4px; cursor: pointer; flex: 1; }
-        .save-name { font-weight: bold; color: #333; font-size: 14px; }
-        .save-date { font-size: 11px; color: #888; }
-        .btn-delete-save { padding: 4px 8px; font-size: 12px; }
+        .save-name { font-weight: 700; color: #374151; font-size: 14px; }
+        .save-date { font-size: 12px; color: #6b7280; font-weight: 500; }
+        .btn-delete-save { padding: 4px 10px; font-size: 12px; }
     </style>
 </head>
 <body>
 
     <div id="loading-overlay" class="overlay overlay-loading">
-        <div>⏳ 処理中...</div>
-        <div style="font-size: 16px; margin-top: 10px;">少し時間がかかる場合があります</div>
+        <span class="material-symbols-outlined" style="font-size: 40px; animation: spin 2s linear infinite;">hourglass_empty</span>
+        <div>処理中...</div>
+        <div style="font-size: 14px; font-weight: normal; opacity: 0.8;">少し時間がかかる場合があります</div>
     </div>
 
     <div id="load-modal-overlay" class="overlay">
         <div id="load-modal">
             <h3>保存データ一覧</h3>
-            <p style="font-size: 12px; color: #d9534f; margin-top: -10px;">※必ず同じPDF/画像をアップロードしてから読み込んでください</p>
+            <p style="font-size: 12px; color: #ef4444; margin-top: -15px; font-weight: 600;">※必ず同じPDF/画像をアップロードしてから読み込んでください</p>
             <ul id="save-data-list"></ul>
             <div style="text-align: right;">
-                <button class="btn" id="btn-close-modal" style="display: inline-block;">キャンセル</button>
+                <button class="btn" id="btn-close-modal">キャンセル</button>
             </div>
         </div>
     </div>
 
-    <div id="header-row">
-        <h1>暗記マスキング</h1>
-        <div id="user-info">
-            <span id="user-name"></span>
-            <button class="btn" id="btn-login" style="background-color: #4285f4; color: white; border: none;">ログイン</button>
-            <button class="btn btn-danger" id="btn-logout" style="display: none; padding: 4px 8px; font-size: 12px;">ログアウト</button>
+    <header id="app-header" class="hideable-ui">
+        <div class="header-top">
+            <div class="header-title-group">
+                <div class="header-brand">
+                    <h1>暗記マスキング</h1>
+                    <img src="favicon.png" alt="ロゴ" class="header-logo">
+                </div>
+                <label for="imageInput" class="btn btn-primary custom-file-upload">
+                    <span class="material-symbols-outlined">folder_open</span> 開く
+                </label>
+                <input type="file" id="imageInput" accept="image/*, application/pdf">
+            </div>
+            
+            <div class="header-actions">
+                <button class="btn btn-icon" id="btn-undo" title="元に戻す">
+                    <span class="material-symbols-outlined">undo</span>
+                </button>
+                <button class="btn btn-icon" id="btn-redo" title="やり直し">
+                    <span class="material-symbols-outlined">redo</span>
+                </button>
+                <div style="width: 1px; height: 20px; background: #e5e7eb; margin: 0 5px;"></div>
+                <button class="btn btn-cloud" id="btn-cloud-save" style="display: none;">
+                    <span class="material-symbols-outlined">cloud_upload</span> 保存
+                </button>
+                <button class="btn btn-cloud" id="btn-cloud-load" style="display: none;">
+                    <span class="material-symbols-outlined">cloud_download</span> 読込
+                </button>
+                <button class="btn btn-primary" id="btn-download" style="background-color: #10b981; border-color: #10b981;">
+                    <span class="material-symbols-outlined">save</span> 書き出し
+                </button>
+                <div style="width: 1px; height: 20px; background: #e5e7eb; margin: 0 5px;"></div>
+                <div id="user-info">
+                    <span id="user-name"></span>
+                    <button class="btn btn-primary" id="btn-login">ログイン</button>
+                    <button class="btn btn-danger" id="btn-logout" style="display: none;">ログアウト</button>
+                </div>
+            </div>
         </div>
-    </div>
+    </header>
 
-    <input type="file" id="imageInput" accept="image/*, application/pdf" style="margin-bottom: 10px;"><br>
     <div id="brush-cursor"></div>
 
-    <div id="toolbar">
-        <div class="toolbar-row">
-            <div class="tool-switch">
-                <input type="radio" id="tool-view" name="currentTool" value="view">
-                <label for="tool-view" title="視点移動・文字コピー">🖐️ ビュー</label>
-                <input type="radio" id="tool-mask" name="currentTool" value="mask" checked>
-                <label for="tool-mask" title="暗記用黒塗り">⬛ 黒塗り</label>
-                <input type="radio" id="tool-highlight" name="currentTool" value="highlight">
-                <label for="tool-highlight" title="四角くハイライト">🖍️ 蛍光ペン</label>
-                <input type="radio" id="tool-text" name="currentTool" value="text">
-                <label for="tool-text" title="文字入力">🔤 テキスト</label>
-                <input type="radio" id="tool-pen" name="currentTool" value="pen">
-                <label for="tool-pen" title="自由な手書き">🖊️ ペン</label>
-                <input type="radio" id="tool-eraser" name="currentTool" value="eraser">
-                <label for="tool-eraser" title="手書きを消す">🧽 消しゴム</label>
-            </div>
-
-            <button class="btn btn-cloud-save" id="btn-cloud-save" title="クラウドに保存する" style="display: none;">保存</button>
-            <button class="btn btn-cloud-load" id="btn-cloud-load" title="クラウドから復元する" style="display: none;">読込</button>
-
-            <button class="btn btn-download" id="btn-download" title="画像やPDFとして保存します">💾 書き出し</button>
-            
-            <button class="btn" id="btn-undo" title="1つ戻る">⟲</button>
-            <button class="btn" id="btn-redo" title="やり直し">⟳</button>
-            <button class="btn btn-danger" id="btn-delete" title="選択したものを消す">🗑️</button>
-            <button class="btn btn-danger" id="btn-clear-all" title="すべて消す">💣</button>
-        </div>
-
-        <div class="toolbar-row" id="properties-row" style="display: flex; min-height: 32px;">
-            <span class="prop-group" id="prop-color">
-                <span class="slider-label">色:</span>
-                <div class="color-palette" id="color-palette">
-                    <div class="swatch" data-color="#ff0000" style="background: #ff0000;" title="赤"></div>
-                    <div class="swatch" data-color="#0000ff" style="background: #0000ff;" title="青"></div>
-                    <div class="swatch" data-color="#00aa00" style="background: #00aa00;" title="緑"></div>
-                    <div class="swatch" data-color="#ffff00" style="background: #ffff00;" title="黄"></div>
-                    <div class="swatch" data-color="#ff6600" style="background: #ff6600;" title="オレンジ"></div>
-                    <div class="swatch" data-color="#000000" style="background: #000000;" title="黒"></div>
-                    <div class="swatch" data-color="#ffffff" style="background: #ffffff;" title="白"></div>
-                    <div class="swatch custom-swatch" id="custom-color-swatch" title="カスタム色を選択"></div>
-                    <input type="color" id="native-color-picker" style="display: none;">
-                </div>
-            </span>
-            
-            <span class="prop-group" id="prop-text-style">
-                <button class="btn btn-icon" id="btn-text-bold" title="太字" style="font-family: serif; width: 30px;"><b>B</b></button>
-                <button class="btn btn-icon" id="btn-text-underline" title="下線" style="font-family: serif; width: 30px;"><u>U</u></button>
-            </span>
-
-            <span class="prop-group" id="prop-text-size">
-                <span class="slider-label">文字サイズ:</span>
-                <button class="btn btn-icon" id="btn-text-size-down">－</button>
-                <div class="combo-box" id="text-size-combo">
-                    <input type="number" id="text-size-input" class="combo-input" value="20" min="10">
-                    <button type="button" class="combo-dropdown-btn" id="text-size-btn">▼</button>
-                    <ul class="combo-list" id="text-size-list">
-                        <li data-val="12">12</li><li data-val="16">16</li><li data-val="20">20</li>
-                        <li data-val="24">24</li><li data-val="28">28</li><li data-val="32">32</li>
-                        <li data-val="36">36</li><li data-val="48">48</li><li data-val="64">64</li>
-                        <li data-val="72">72</li>
-                    </ul>
-                </div>
-                <button class="btn btn-icon" id="btn-text-size-up">＋</button>
-            </span>
-
-            <span class="prop-group" id="prop-pen-width">
-                <span class="slider-label">太さ:</span>
-                <input type="range" id="pen-width-slider" min="0.5" max="100" step="0.5" value="3" style="width: 80px;">
-                <input type="number" id="pen-width-input" class="number-input" min="0.5" max="100" step="0.5" value="3">
-            </span>
-
-            <span class="prop-group" id="prop-opacity">
-                <span class="slider-label">濃さ:</span>
-                <input type="range" id="pen-opacity" min="0.1" max="1" step="0.1" value="1" style="width: 80px;">
-            </span>
-        </div>
-    </div>
-
     <div id="main-area">
-        <div id="controls-row">
-            <div id="left-controls">
-                <button class="btn" id="btn-toggle-sidebar" style="display:none;" title="ページ一覧を開閉">☰</button>
-                <div id="page-navigation" style="display:none;">
+        <div id="pdf-sidebar" class="hideable-ui"></div>
+
+        <div id="workspace-outer">
+            <button id="btn-focus-mode" title="集中モード (UI非表示)">
+                <span class="material-symbols-outlined">visibility</span>
+            </button>
+
+            <div id="floating-top-left" class="floating-ui hideable-ui" style="display: none;">
+                <button class="btn btn-icon" id="btn-toggle-sidebar" title="ページ一覧">
+                    <span class="material-symbols-outlined">menu</span>
+                </button>
+                <div id="page-navigation">
                     <input type="number" id="page-input" value="1" min="1"> / <span id="page-total">1</span>
                 </div>
             </div>
-            
-            <div id="zoom-controls">
-                <button class="btn" id="btn-zoom-out">－</button>
-                <span id="zoom-text">100%</span>
-                <button class="btn" id="btn-zoom-in">＋</button>
-                <button class="btn" id="btn-zoom-reset">リセット</button>
-            </div>
-        </div>
 
-        <div id="workspace-outer">
-            <div id="pdf-sidebar"></div>
+            <div id="floating-bottom-right" class="floating-ui hideable-ui">
+                <button class="btn btn-icon" id="btn-zoom-out" title="縮小">
+                    <span class="material-symbols-outlined">remove</span>
+                </button>
+                <span id="zoom-text">100%</span>
+                <button class="btn btn-icon" id="btn-zoom-in" title="拡大">
+                    <span class="material-symbols-outlined">add</span>
+                </button>
+                <div style="width: 1px; height: 16px; background: #d1d5db; margin: 0 2px;"></div>
+                <button class="btn btn-icon" id="btn-zoom-reset" title="ズームリセット">
+                    <span class="material-symbols-outlined">fit_screen</span>
+                </button>
+            </div>
+
+            <div id="floating-tools-container" class="hideable-ui">
+                <div id="floating-properties">
+                    <span class="prop-group" id="prop-mask-type">
+                        <div class="mini-switch">
+                            <input type="radio" id="mask-type-rect" name="maskType" value="rect" checked>
+                            <label for="mask-type-rect" title="四角形"><span class="material-symbols-outlined icon-filled">rectangle</span></label>
+                            <input type="radio" id="mask-type-free" name="maskType" value="free">
+                            <label for="mask-type-free" title="手書き"><span class="material-symbols-outlined">draw</span></label>
+                        </div>
+                    </span>
+
+                    <span class="prop-group" id="prop-color">
+                        <span class="slider-label material-symbols-outlined" title="色">palette</span>
+                        <div class="color-palette" id="color-palette">
+                            <div class="swatch" data-color="#ef4444" style="background: #ef4444;" title="赤"></div>
+                            <div class="swatch" data-color="#3b82f6" style="background: #3b82f6;" title="青"></div>
+                            <div class="swatch" data-color="#10b981" style="background: #10b981;" title="緑"></div>
+                            <div class="swatch" data-color="#f59e0b" style="background: #f59e0b;" title="黄"></div>
+                            <div class="swatch" data-color="#f97316" style="background: #f97316;" title="オレンジ"></div>
+                            <div class="swatch" data-color="#1f2937" style="background: #1f2937;" title="黒"></div>
+                            <div class="swatch" data-color="#ffffff" style="background: #ffffff;" title="白"></div>
+                            <div class="swatch custom-swatch" id="custom-color-swatch" title="カスタム色を選択" style="position: relative;">
+                                <input type="color" id="native-color-picker" style="position: absolute; opacity: 0; width: 100%; height: 100%; top: 0; left: 0; pointer-events: none;">
+                            </div>
+                        </div>
+                    </span>
+                    
+                    <span class="prop-group" id="prop-text-style">
+                        <button class="btn btn-icon" id="btn-text-bold" title="太字"><span class="material-symbols-outlined">format_bold</span></button>
+                        <button class="btn btn-icon" id="btn-text-underline" title="下線"><span class="material-symbols-outlined">format_underlined</span></button>
+                        <button class="btn btn-icon" id="btn-text-strike" title="取り消し線"><span class="material-symbols-outlined">strikethrough_s</span></button>
+                    </span>
+
+                    <span class="prop-group" id="prop-text-align">
+                        <button class="btn btn-icon" id="btn-align-left" title="左揃え"><span class="material-symbols-outlined">format_align_left</span></button>
+                        <button class="btn btn-icon" id="btn-align-center" title="中央揃え"><span class="material-symbols-outlined">format_align_center</span></button>
+                        <button class="btn btn-icon" id="btn-align-right" title="右揃え"><span class="material-symbols-outlined">format_align_right</span></button>
+                    </span>
+
+                    <span class="prop-group" id="prop-text-size">
+                        <span class="slider-label material-symbols-outlined" title="文字サイズ">format_size</span>
+                        <button class="btn btn-icon" id="btn-text-size-down"><span class="material-symbols-outlined">remove</span></button>
+                        <div class="combo-box" id="text-size-combo">
+                            <input type="number" id="text-size-input" class="combo-input" value="20" min="10">
+                            <button type="button" class="combo-dropdown-btn" id="text-size-btn"><span class="material-symbols-outlined" style="font-size:16px;">arrow_drop_down</span></button>
+                            <ul class="combo-list" id="text-size-list">
+                                <li data-val="12">12</li><li data-val="16">16</li><li data-val="20">20</li>
+                                <li data-val="24">24</li><li data-val="28">28</li><li data-val="32">32</li>
+                                <li data-val="36">36</li><li data-val="48">48</li><li data-val="64">64</li><li data-val="72">72</li>
+                            </ul>
+                        </div>
+                        <button class="btn btn-icon" id="btn-text-size-up"><span class="material-symbols-outlined">add</span></button>
+                    </span>
+
+                    <span class="prop-group" id="prop-pen-width">
+                        <span class="slider-label material-symbols-outlined" title="太さ">line_weight</span>
+                        <input type="range" id="pen-width-slider" min="0.5" max="100" step="0.5" value="15" style="width: 80px;">
+                        <input type="number" id="pen-width-input" class="number-input" min="0.5" max="100" step="0.5" value="15">
+                    </span>
+
+                    <span class="prop-group" id="prop-opacity">
+                        <span class="slider-label material-symbols-outlined" title="濃さ">opacity</span>
+                        <input type="range" id="pen-opacity" min="0.1" max="1" step="0.1" value="1" style="width: 80px;">
+                    </span>
+                </div>
+
+                <div class="tool-switch">
+                    <input type="radio" id="tool-view" name="currentTool" value="view">
+                    <label for="tool-view" title="移動・選択"><span class="material-symbols-outlined">pan_tool</span></label>
+                    <input type="radio" id="tool-mask" name="currentTool" value="mask" checked>
+                    <label for="tool-mask" title="黒塗りマスク"><span class="material-symbols-outlined icon-filled">square</span></label>
+                    <input type="radio" id="tool-highlight" name="currentTool" value="highlight">
+                    <label for="tool-highlight" title="蛍光ペン"><span class="material-symbols-outlined">format_ink_highlighter</span></label>
+                    <input type="radio" id="tool-text" name="currentTool" value="text">
+                    <label for="tool-text" title="テキスト入力"><span class="material-symbols-outlined">text_fields</span></label>
+                    <input type="radio" id="tool-pen" name="currentTool" value="pen">
+                    <label for="tool-pen" title="ペン"><span class="material-symbols-outlined">brush</span></label>
+                    <input type="radio" id="tool-eraser" name="currentTool" value="eraser">
+                    <label for="tool-eraser" title="消しゴム"><span class="material-symbols-outlined">ink_eraser</span></label>
+                    
+                    <div class="tool-divider"></div>
+
+                    <button class="btn btn-icon btn-danger" id="btn-delete" title="選択したものを消す" style="border:none; background:transparent;">
+                        <span class="material-symbols-outlined">delete</span>
+                    </button>
+                    <button class="btn btn-icon btn-danger" id="btn-clear-all" title="すべて消す" style="border:none; background:transparent;">
+                        <span class="material-symbols-outlined">delete_forever</span>
+                    </button>
+                </div>
+            </div>
 
             <div id="workspace-container" class="tool-mask"> 
                 <div id="workspace-wrapper">
@@ -288,7 +537,6 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-analytics.js";
-        // ★変更：signInWithRedirect と getRedirectResult を使用
         import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
         import { getFirestore, collection, doc, addDoc, getDocs, query, orderBy, deleteDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
@@ -309,7 +557,6 @@
 
         let currentUser = null;
 
-        // ★新規：リダイレクト後のエラー処理（SafariのITP対策用）
         getRedirectResult(auth).catch((error) => {
             console.error("ログインエラー:", error);
             alert("ログインに失敗しました。\nSafariの設定で「サイト越えトラッキングを防ぐ」をオフにしてください。");
@@ -325,14 +572,14 @@
             if (user) {
                 currentUser = user;
                 btnLogin.style.display = 'none';
-                btnLogout.style.display = 'block';
-                btnSave.style.display = 'flex';
-                btnLoad.style.display = 'flex';
+                btnLogout.style.display = 'inline-flex';
+                btnSave.style.display = 'inline-flex';
+                btnLoad.style.display = 'inline-flex';
                 userNameDisplay.innerText = user.displayName + " さん";
                 userNameDisplay.style.display = 'block';
             } else {
                 currentUser = null;
-                btnLogin.style.display = 'block';
+                btnLogin.style.display = 'inline-flex';
                 btnLogout.style.display = 'none';
                 btnSave.style.display = 'none';
                 btnLoad.style.display = 'none';
@@ -340,7 +587,6 @@
             }
         });
 
-        // ★変更：ポップアップではなくリダイレクトでログイン（スマホSafari対応）
         document.getElementById('btn-login').addEventListener('click', () => {
             const provider = new GoogleAuthProvider();
             signInWithRedirect(auth, provider);
@@ -358,29 +604,37 @@
             const workspace = document.getElementById('workspace');
             const loadingOverlay = document.getElementById('loading-overlay');
             
-            loadingOverlay.querySelector('div').innerText = 'クラウドに保存中...';
+            loadingOverlay.querySelectorAll('div')[1].innerText = 'クラウドに保存中...';
             loadingOverlay.style.display = 'flex';
             
             try {
                 const elements = Array.from(workspace.querySelectorAll('.canvas-element')).map(el => {
                     const isText = el.classList.contains('text-wrapper');
                     const isHighlight = el.classList.contains('highlight-box');
+                    const isFreehandMask = el.classList.contains('mask-freehand-wrapper');
+                    
                     return {
-                        type: isText ? 'text' : (isHighlight ? 'highlight' : 'mask'),
+                        type: isText ? 'text' : (isHighlight ? 'highlight' : (isFreehandMask ? 'freehand-mask' : 'mask')),
                         left: el.style.left, top: el.style.top, width: el.style.width, height: el.style.height,
                         content: isText ? el.querySelector('.text-content').innerHTML : null,
                         fontSize: isText ? el.style.fontSize : null, color: isText ? el.style.color : null,
-                        backgroundColor: isHighlight ? el.style.backgroundColor : null
+                        backgroundColor: isHighlight ? el.style.backgroundColor : null,
+                        zIndex: el.style.zIndex,
+                        textAlign: isText ? (el.style.textAlign || el.querySelector('.text-content').style.textAlign || 'left') : null,
+                        pathD: isFreehandMask ? el.querySelector('path').getAttribute('d') : null,
+                        strokeWidth: isFreehandMask ? el.querySelector('path').getAttribute('stroke-width') : null
                     };
                 });
                 
                 const canvasDataArray = window.currentCanvasStates || [];
+                const canvasZIndexes = Array.from(workspace.querySelectorAll('.drawing-canvas')).map(c => c.style.zIndex);
                 const timestamp = new Date().getTime();
 
                 const payload = {
                     name: saveName,
                     elements: elements,
                     canvasDataArray: canvasDataArray,
+                    canvasZIndexes: canvasZIndexes,
                     timestamp: timestamp
                 };
 
@@ -406,7 +660,7 @@
             }
 
             const loadingOverlay = document.getElementById('loading-overlay');
-            loadingOverlay.querySelector('div').innerText = 'データ一覧を取得中...';
+            loadingOverlay.querySelectorAll('div')[1].innerText = 'データ一覧を取得中...';
             loadingOverlay.style.display = 'flex';
             
             try {
@@ -489,14 +743,26 @@
             if (window.deselectCurrent) window.deselectCurrent();
             
             data.elements.forEach(elData => {
-                if (elData.type === 'mask') window.createMaskElement(elData.left, elData.top, elData.width, elData.height);
-                else if (elData.type === 'highlight') window.createHighlightElement(elData.left, elData.top, elData.width, elData.height, elData.backgroundColor);
-                else window.createTextElement(elData.left, elData.top, elData.width, elData.height, elData.content, elData.fontSize, elData.color); 
+                let el;
+                if (elData.type === 'mask') el = window.createMaskElement(elData.left, elData.top, elData.width, elData.height);
+                else if (elData.type === 'freehand-mask') el = window.createFreehandMaskElement(elData.left, elData.top, elData.width, elData.height, elData.pathD, elData.strokeWidth);
+                else if (elData.type === 'highlight') el = window.createHighlightElement(elData.left, elData.top, elData.width, elData.height, elData.backgroundColor);
+                else el = window.createTextElement(elData.left, elData.top, elData.width, elData.height, elData.content, elData.fontSize, elData.color, elData.textAlign); 
+                
+                if (elData.zIndex) {
+                    el.style.zIndex = elData.zIndex;
+                    if (parseInt(elData.zIndex) > window.globalZIndex) window.globalZIndex = parseInt(elData.zIndex);
+                }
             });
 
             window.currentCanvasStates = data.canvasDataArray || [];
             const canvases = Array.from(workspace.querySelectorAll('.drawing-canvas'));
             canvases.forEach((c, i) => {
+                if (data.canvasZIndexes && data.canvasZIndexes[i]) {
+                    c.style.zIndex = data.canvasZIndexes[i];
+                } else {
+                    c.style.zIndex = '2';
+                }
                 const ctx = c.getContext('2d');
                 ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, c.width, c.height); ctx.restore();
                 if (window.currentCanvasStates[i]) {
@@ -514,6 +780,15 @@
 
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        const RENDER_SCALE = Math.max(window.devicePixelRatio || 1, 3.0); 
+        
+        window.globalZIndex = 10;
+        window.bringToFront = function(element) {
+            if (!element) return;
+            window.globalZIndex++;
+            element.style.zIndex = window.globalZIndex;
+        };
 
         const imageInput = document.getElementById('imageInput');
         const uploadedImage = document.getElementById('uploaded-image');
@@ -533,6 +808,7 @@
         const pageTotal = document.getElementById('page-total');
         
         const toolRadios = document.querySelectorAll('input[name="currentTool"]');
+        const maskTypeRadios = document.querySelectorAll('input[name="maskType"]');
         const textSizeInput = document.getElementById('text-size-input'); 
         const penWidthSlider = document.getElementById('pen-width-slider'); 
         const penWidthInput = document.getElementById('pen-width-input'); 
@@ -559,9 +835,25 @@
         let activeCtx = null;
         let activeCanvasIndex = null;
         
+        let tempMaskSvg = null;
+        let tempMaskPath = null;
+        let tempPathD = "";
+
         window.currentCanvasStates = [];
 
-        const toolColors = { text: '#ff0000', highlight: '#ffff00', pen: '#ff0000' };
+        const toolColors = { text: '#ef4444', highlight: '#f59e0b', pen: '#ef4444' };
+
+        document.getElementById('btn-focus-mode').addEventListener('click', function() {
+            document.body.classList.toggle('focus-mode');
+            const icon = this.querySelector('.material-symbols-outlined');
+            if (document.body.classList.contains('focus-mode')) {
+                icon.innerText = 'visibility_off';
+                this.title = 'UIを表示する';
+            } else {
+                icon.innerText = 'visibility';
+                this.title = '集中モード (UI非表示)';
+            }
+        });
 
         function hexToRgba(hex, alpha) {
             const r = parseInt(hex.slice(1, 3), 16); const g = parseInt(hex.slice(3, 5), 16); const b = parseInt(hex.slice(5, 7), 16);
@@ -580,6 +872,8 @@
                     activeCtx.closePath();
                     if (activeCanvas && activeCanvasIndex !== null) { window.currentCanvasStates[activeCanvasIndex] = activeCanvas.toDataURL(); }
                     window.saveState();
+                } else if (action === 'draw_freehand_mask' && tempMaskSvg) {
+                    tempMaskSvg.remove(); tempMaskSvg = null; tempMaskPath = null;
                 }
                 action = null; penPoints = []; activeCanvas = null; activeCtx = null; activeCanvasIndex = null;
             }
@@ -652,12 +946,45 @@
             }
         });
 
+        document.getElementById('btn-text-strike').addEventListener('pointerdown', (e) => {
+            e.preventDefault(); 
+            if (currentTool === 'text' && selectedElement && selectedElement.classList.contains('text-wrapper')) {
+                if (savedSelectionRange && selectedElement.contains(savedSelectionRange.commonAncestorContainer)) {
+                    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(savedSelectionRange);
+                }
+                document.execCommand('strikeThrough', false, null); window.saveState();
+            }
+        });
+
+        function setTextAlign(align) {
+            if (currentTool === 'text' && selectedElement && selectedElement.classList.contains('text-wrapper')) {
+                selectedElement.style.textAlign = align;
+                selectedElement.querySelector('.text-content').style.textAlign = align;
+                window.saveState();
+            }
+        }
+        document.getElementById('btn-align-left').addEventListener('pointerdown', (e) => { e.preventDefault(); setTextAlign('left'); });
+        document.getElementById('btn-align-center').addEventListener('pointerdown', (e) => { e.preventDefault(); setTextAlign('center'); });
+        document.getElementById('btn-align-right').addEventListener('pointerdown', (e) => { e.preventDefault(); setTextAlign('right'); });
+
         function updateToolbar() {
+            const maskType = document.querySelector('input[name="maskType"]:checked') ? document.querySelector('input[name="maskType"]:checked').value : 'rect';
+            
+            document.getElementById('prop-mask-type').style.display = (currentTool === 'mask') ? 'flex' : 'none';
             document.getElementById('prop-color').style.display = ['text', 'highlight', 'pen'].includes(currentTool) ? 'flex' : 'none';
             document.getElementById('prop-text-style').style.display = (currentTool === 'text') ? 'flex' : 'none'; 
+            document.getElementById('prop-text-align').style.display = (currentTool === 'text') ? 'flex' : 'none';
             document.getElementById('prop-text-size').style.display = (currentTool === 'text') ? 'flex' : 'none';
-            document.getElementById('prop-pen-width').style.display = ['pen', 'eraser'].includes(currentTool) ? 'flex' : 'none';
+            
+            document.getElementById('prop-pen-width').style.display = ['pen', 'eraser'].includes(currentTool) || (currentTool === 'mask' && maskType === 'free') ? 'flex' : 'none';
+            
             document.getElementById('prop-opacity').style.display = ['highlight', 'pen'].includes(currentTool) ? 'flex' : 'none';
+            
+            const floatingProps = document.getElementById('floating-properties');
+            if(floatingProps) {
+                floatingProps.style.display = ['text', 'highlight', 'pen', 'eraser', 'mask'].includes(currentTool) ? 'flex' : 'none';
+            }
+
             updatePaletteUI(); updateBrushCursor(); 
         }
 
@@ -668,6 +995,10 @@
                 if (selectedElement) window.deselectCurrent();
             });
         });
+        maskTypeRadios.forEach(radio => {
+            radio.addEventListener('change', () => { updateToolbar(); });
+        });
+        
         updateToolbar();
 
         penWidthSlider.addEventListener('input', (e) => { penWidthInput.value = e.target.value; updateBrushCursor(); });
@@ -677,29 +1008,47 @@
         });
 
         function updateBrushCursor() {
-            if (['pen', 'eraser'].includes(currentTool)) {
+            const maskType = document.querySelector('input[name="maskType"]:checked') ? document.querySelector('input[name="maskType"]:checked').value : 'rect';
+            if (['pen', 'eraser'].includes(currentTool) || (currentTool === 'mask' && maskType === 'free')) {
                 const visualSize = parseFloat(penWidthInput.value) * zoomLevel;
                 brushCursor.style.width = visualSize + 'px'; brushCursor.style.height = visualSize + 'px';
+            } else {
+                brushCursor.style.width = '0px'; brushCursor.style.height = '0px';
             }
         }
 
         function setZoom(newZoom) {
             if (newZoom < 0.2) newZoom = 0.2; if (newZoom > 5.0) newZoom = 5.0; 
-            const containerW = workspaceContainer.clientWidth; const containerH = workspaceContainer.clientHeight;
-            const currentMarginLeft = parseFloat(workspaceWrapper.style.marginLeft) || 0; const currentMarginTop = parseFloat(workspaceWrapper.style.marginTop) || 0;
-            const centerX = (workspaceContainer.scrollLeft + containerW / 2 - currentMarginLeft) / zoomLevel;
-            const centerY = (workspaceContainer.scrollTop + containerH / 2 - currentMarginTop) / zoomLevel;
+            
+            const containerW = workspaceContainer.clientWidth; 
+            const containerH = workspaceContainer.clientHeight;
+            
+            const oldZoom = zoomLevel;
+            const oldMarginLeft = parseFloat(workspaceWrapper.style.marginLeft) || 0; 
+            const oldMarginTop = parseFloat(workspaceWrapper.style.marginTop) || 0;
+            
+            const centerX = (workspaceContainer.scrollLeft + containerW / 2 - oldMarginLeft) / oldZoom;
+            const centerY = (workspaceContainer.scrollTop + containerH / 2 - oldMarginTop) / oldZoom;
 
-            zoomLevel = newZoom; workspace.style.transform = `scale(${zoomLevel})`; zoomText.innerText = Math.round(zoomLevel * 100) + '%';
+            zoomLevel = newZoom; 
+            workspace.style.transform = `scale(${zoomLevel})`; 
+            zoomText.innerText = Math.round(zoomLevel * 100) + '%';
             
-            const scaledW = workspace.offsetWidth * zoomLevel; const scaledH = workspace.offsetHeight * zoomLevel;
-            workspaceWrapper.style.width = scaledW + 'px'; workspaceWrapper.style.height = scaledH + 'px';
+            const newScaledW = workspace.offsetWidth * zoomLevel; 
+            const newScaledH = workspace.offsetHeight * zoomLevel;
             
-            const newMarginLeft = Math.max(0, (containerW - scaledW) / 2); const newMarginTop = Math.max(0, (containerH - scaledH) / 2);
-            workspaceWrapper.style.marginLeft = newMarginLeft + 'px'; workspaceWrapper.style.marginTop = newMarginTop + 'px';
+            workspaceWrapper.style.width = newScaledW + 'px'; 
+            workspaceWrapper.style.height = newScaledH + 'px';
+            
+            const newMarginLeft = Math.max(0, (containerW - newScaledW) / 2); 
+            const newMarginTop = Math.max(0, (containerH - newScaledH) / 2);
+            
+            workspaceWrapper.style.marginLeft = newMarginLeft + 'px'; 
+            workspaceWrapper.style.marginTop = newMarginTop + 'px';
             
             workspaceContainer.scrollLeft = (centerX * zoomLevel) + newMarginLeft - (containerW / 2);
             workspaceContainer.scrollTop = (centerY * zoomLevel) + newMarginTop - (containerH / 2);
+            
             updateBrushCursor(); 
         }
 
@@ -715,15 +1064,22 @@
 
         window.saveState = function() {
             const elements = Array.from(workspace.querySelectorAll('.canvas-element')).map(el => {
-                const isText = el.classList.contains('text-wrapper'); const isHighlight = el.classList.contains('highlight-box');
+                const isText = el.classList.contains('text-wrapper'); 
+                const isHighlight = el.classList.contains('highlight-box');
+                const isFreehandMask = el.classList.contains('mask-freehand-wrapper');
                 return {
-                    type: isText ? 'text' : (isHighlight ? 'highlight' : 'mask'),
+                    type: isText ? 'text' : (isHighlight ? 'highlight' : (isFreehandMask ? 'freehand-mask' : 'mask')),
                     left: el.style.left, top: el.style.top, width: el.style.width, height: el.style.height,
-                    content: isText ? el.querySelector('.text-content').innerHTML : null, fontSize: isText ? el.style.fontSize : null, color: isText ? el.style.color : null, backgroundColor: isHighlight ? el.style.backgroundColor : null
+                    content: isText ? el.querySelector('.text-content').innerHTML : null, fontSize: isText ? el.style.fontSize : null, color: isText ? el.style.color : null, backgroundColor: isHighlight ? el.style.backgroundColor : null,
+                    zIndex: el.style.zIndex,
+                    textAlign: isText ? (el.style.textAlign || el.querySelector('.text-content').style.textAlign || 'left') : null,
+                    pathD: isFreehandMask ? el.querySelector('path').getAttribute('d') : null,
+                    strokeWidth: isFreehandMask ? el.querySelector('path').getAttribute('stroke-width') : null
                 };
             });
             const canvasDataArray = [...window.currentCanvasStates];
-            window.historyArray = window.historyArray.slice(0, window.historyIndex + 1); window.historyArray.push({ elements, canvasDataArray }); window.historyIndex++;
+            const canvasZIndexes = Array.from(workspace.querySelectorAll('.drawing-canvas')).map(c => c.style.zIndex);
+            window.historyArray = window.historyArray.slice(0, window.historyIndex + 1); window.historyArray.push({ elements, canvasDataArray, canvasZIndexes }); window.historyIndex++;
         }
 
         function restoreState(index) {
@@ -731,15 +1087,27 @@
             workspace.querySelectorAll('.canvas-element').forEach(el => el.remove()); window.deselectCurrent();
             const state = window.historyArray[index];
             state.elements.forEach(data => {
-                if (data.type === 'mask') window.createMaskElement(data.left, data.top, data.width, data.height);
-                else if (data.type === 'highlight') window.createHighlightElement(data.left, data.top, data.width, data.height, data.backgroundColor);
-                else window.createTextElement(data.left, data.top, data.width, data.height, data.content, data.fontSize, data.color); 
+                let el;
+                if (data.type === 'mask') el = window.createMaskElement(data.left, data.top, data.width, data.height);
+                else if (data.type === 'freehand-mask') el = window.createFreehandMaskElement(data.left, data.top, data.width, data.height, data.pathD, data.strokeWidth);
+                else if (data.type === 'highlight') el = window.createHighlightElement(data.left, data.top, data.width, data.height, data.backgroundColor);
+                else el = window.createTextElement(data.left, data.top, data.width, data.height, data.content, data.fontSize, data.color, data.textAlign); 
+                
+                if (data.zIndex) {
+                    el.style.zIndex = data.zIndex;
+                    if (parseInt(data.zIndex) > window.globalZIndex) window.globalZIndex = parseInt(data.zIndex);
+                }
             });
             
             window.currentCanvasStates = [...state.canvasDataArray];
             const canvases = Array.from(workspace.querySelectorAll('.drawing-canvas'));
             
             canvases.forEach((c, i) => {
+                if (state.canvasZIndexes && state.canvasZIndexes[i]) {
+                    c.style.zIndex = state.canvasZIndexes[i];
+                } else {
+                    c.style.zIndex = '2';
+                }
                 const ctx = c.getContext('2d');
                 ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, c.width, c.height); ctx.restore();
                 if (window.currentCanvasStates[i]) {
@@ -751,24 +1119,66 @@
         }
 
         window.createMaskElement = function(left, top, width, height) {
-            const mask = document.createElement('div'); mask.className = 'canvas-element mask';
+            const mask = document.createElement('div'); mask.className = 'canvas-element mask mask-rect';
             mask.style.left = left; mask.style.top = top; mask.style.width = width; mask.style.height = height;
-            addResizeHandles(mask); workspace.appendChild(mask); return mask;
+            addResizeHandles(mask); 
+            window.bringToFront(mask);
+            workspace.appendChild(mask); return mask;
+        }
+
+        window.createFreehandMaskElement = function(left, top, width, height, pathD, strokeWidth) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'canvas-element mask mask-freehand-wrapper';
+            wrapper.style.left = left;
+            wrapper.style.top = top;
+            wrapper.style.width = width;
+            wrapper.style.height = height;
+            
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svg.style.width = '100%';
+            svg.style.height = '100%';
+            svg.style.pointerEvents = 'none';
+            svg.setAttribute('preserveAspectRatio', 'none');
+            svg.setAttribute('viewBox', `0 0 ${parseFloat(width)} ${parseFloat(height)}`);
+            
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute('d', pathD);
+            path.setAttribute('stroke', 'black');
+            path.setAttribute('stroke-width', strokeWidth);
+            path.setAttribute('stroke-linecap', 'round');
+            path.setAttribute('stroke-linejoin', 'round');
+            path.setAttribute('fill', 'none');
+            path.setAttribute('vector-effect', 'non-scaling-stroke'); 
+            
+            svg.appendChild(path);
+            wrapper.appendChild(svg);
+            addResizeHandles(wrapper);
+            window.bringToFront(wrapper);
+            workspace.appendChild(wrapper);
+            return wrapper;
         }
 
         window.createHighlightElement = function(left, top, width, height, bgColor) {
             const box = document.createElement('div'); box.className = 'canvas-element highlight-box';
             box.style.left = left; box.style.top = top; box.style.width = width; box.style.height = height;
-            box.style.backgroundColor = bgColor; addResizeHandles(box); workspace.appendChild(box); return box;
+            box.style.backgroundColor = bgColor; addResizeHandles(box); 
+            window.bringToFront(box);
+            workspace.appendChild(box); return box;
         }
 
-        window.createTextElement = function(left, top, width, height, content = '', fontSize = '20px', color = '#ff0000') {
+        window.createTextElement = function(left, top, width, height, content = '', fontSize = '20px', color = '#ef4444', textAlign = 'left') {
             const wrapper = document.createElement('div'); wrapper.className = 'canvas-element text-wrapper';
             wrapper.style.left = left; wrapper.style.top = top;
             if (width) wrapper.style.width = width; if (height) wrapper.style.height = height;
             wrapper.style.fontSize = fontSize; wrapper.style.color = color; 
+            wrapper.style.textAlign = textAlign;
+            
             const textContent = document.createElement('div'); textContent.className = 'text-content'; textContent.contentEditable = "true"; textContent.innerHTML = content;
-            wrapper.appendChild(textContent); addResizeHandles(wrapper); workspace.appendChild(wrapper);
+            textContent.style.textAlign = textAlign;
+            
+            wrapper.appendChild(textContent); addResizeHandles(wrapper); 
+            window.bringToFront(wrapper);
+            workspace.appendChild(wrapper);
             textContent.addEventListener('blur', () => { if (textContent.innerText.trim() === '') wrapper.remove(); else window.saveState(); });
             return wrapper;
         }
@@ -838,8 +1248,6 @@
             window.deselectCurrent(); window.historyArray = []; window.historyIndex = -1; window.currentCanvasStates = [];
             
             setTimeout(() => {
-                const dpr = window.devicePixelRatio || 1;
-                
                 if (!isPdf) {
                     let drawCanvas = workspace.querySelector('.drawing-canvas');
                     if (!drawCanvas) {
@@ -849,10 +1257,13 @@
                         drawCanvas.style.pointerEvents = 'none'; drawCanvas.style.zIndex = '2';
                         workspace.appendChild(drawCanvas);
                     }
-                    drawCanvas.width = workspace.offsetWidth * dpr; drawCanvas.height = workspace.offsetHeight * dpr;
-                    drawCanvas.style.width = workspace.offsetWidth + 'px'; drawCanvas.style.height = workspace.offsetHeight + 'px';
+                    drawCanvas.width = workspace.offsetWidth * RENDER_SCALE; 
+                    drawCanvas.height = workspace.offsetHeight * RENDER_SCALE;
+                    drawCanvas.style.width = workspace.offsetWidth + 'px'; 
+                    drawCanvas.style.height = workspace.offsetHeight + 'px';
                     const ctx = drawCanvas.getContext('2d', { willReadFrequently: true });
-                    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.scale(dpr, dpr);
+                    ctx.setTransform(1, 0, 0, 1, 0, 0); 
+                    ctx.scale(RENDER_SCALE, RENDER_SCALE);
                     ctx.clearRect(0, 0, workspace.offsetWidth, workspace.offsetHeight);
                 }
                 
@@ -870,12 +1281,19 @@
             if (p < 1) p = 1; if (p > totalPdfPages) p = totalPdfPages;
             pageInput.value = p;
             const targetPage = document.getElementById(`pdf-page-${p}`);
-            if (targetPage) { workspaceContainer.scrollTop = (targetPage.offsetTop * zoomLevel); }
+            if (targetPage) { 
+                const currentMarginTop = parseFloat(workspaceWrapper.style.marginTop) || 0;
+                workspaceContainer.scrollTo({
+                    top: (targetPage.offsetTop * zoomLevel) + currentMarginTop,
+                    behavior: 'smooth'
+                });
+            }
         });
 
         workspaceContainer.addEventListener('scroll', () => {
             if (pdfContainer.style.display !== 'block') return;
-            const containerCenter = (workspaceContainer.scrollTop + workspaceContainer.clientHeight / 2) / zoomLevel;
+            const currentMarginTop = parseFloat(workspaceWrapper.style.marginTop) || 0;
+            const containerCenter = (workspaceContainer.scrollTop - currentMarginTop + workspaceContainer.clientHeight / 2) / zoomLevel;
             let currentP = 1;
             document.querySelectorAll('.pdf-page').forEach(p => {
                 const top = p.offsetTop; const bottom = top + p.offsetHeight;
@@ -897,20 +1315,22 @@
             const file = e.target.files[0];
             if (!file) return;
 
-            pdfSidebar.innerHTML = ''; btnToggleSidebar.style.display = 'none'; pageNavigation.style.display = 'none';
+            pdfSidebar.innerHTML = ''; document.getElementById('floating-top-left').style.display = 'none';
             isSidebarOpen = false; pdfSidebar.style.display = 'none';
             workspace.querySelectorAll('.drawing-canvas').forEach(c => c.remove());
             
             if (file.type === 'application/pdf') {
                 uploadedImage.style.display = 'none'; pdfContainer.style.display = 'block'; 
-                loadingOverlay.querySelector('div').innerText = 'PDFを読み込み中...'; loadingOverlay.style.display = 'flex';
+                const loadingOverlay = document.getElementById('loading-overlay');
+                loadingOverlay.style.display = 'flex';
+                loadingOverlay.querySelectorAll('div')[1].innerText = 'PDFを読み込み中...'; 
                 
                 try {
                     const arrayBuffer = await file.arrayBuffer(); const pdf = await pdfjsLib.getDocument(arrayBuffer).promise; 
                     pdfContainer.innerHTML = ''; 
                     
                     totalPdfPages = pdf.numPages; pageTotal.innerText = totalPdfPages; pageInput.max = totalPdfPages; pageInput.value = 1;
-                    btnToggleSidebar.style.display = 'block'; pageNavigation.style.display = 'flex';
+                    document.getElementById('floating-top-left').style.display = 'flex';
 
                     const page1 = await pdf.getPage(1); const viewport1 = page1.getViewport({ scale: 1.0 });
                     const containerW = workspaceContainer.clientWidth; const baseScale = (containerW * 0.9) / viewport1.width;
@@ -921,7 +1341,14 @@
                         const pageDiv = document.createElement('div'); pageDiv.className = 'pdf-page'; pageDiv.id = `pdf-page-${i}`; pageDiv.dataset.page = i;
                         pageDiv.style.width = viewport.width + 'px'; pageDiv.style.height = viewport.height + 'px';
                         
-                        const canvas = document.createElement('canvas'); canvas.width = viewport.width; canvas.height = viewport.height; canvas.style.display = 'block'; pageDiv.appendChild(canvas);
+                        const canvas = document.createElement('canvas'); 
+                        canvas.width = viewport.width * RENDER_SCALE; 
+                        canvas.height = viewport.height * RENDER_SCALE; 
+                        canvas.style.display = 'block'; 
+                        canvas.style.width = viewport.width + 'px'; 
+                        canvas.style.height = viewport.height + 'px';
+                        pageDiv.appendChild(canvas);
+                        
                         const textLayerDiv = document.createElement('div'); textLayerDiv.className = 'textLayer'; textLayerDiv.style.width = viewport.width + 'px'; textLayerDiv.style.height = viewport.height + 'px'; textLayerDiv.style.setProperty('--scale-factor', viewport.scale); pageDiv.appendChild(textLayerDiv);
                         
                         const drawCanvas = document.createElement('canvas');
@@ -929,17 +1356,19 @@
                         drawCanvas.style.position = 'absolute'; drawCanvas.style.top = '0'; drawCanvas.style.left = '0';
                         drawCanvas.style.pointerEvents = 'none'; drawCanvas.style.zIndex = '2';
                         
-                        const dpr = window.devicePixelRatio || 1;
-                        drawCanvas.width = viewport.width * dpr; drawCanvas.height = viewport.height * dpr;
-                        drawCanvas.style.width = viewport.width + 'px'; drawCanvas.style.height = viewport.height + 'px';
+                        drawCanvas.width = viewport.width * RENDER_SCALE; 
+                        drawCanvas.height = viewport.height * RENDER_SCALE;
+                        drawCanvas.style.width = viewport.width + 'px'; 
+                        drawCanvas.style.height = viewport.height + 'px';
                         pageDiv.appendChild(drawCanvas);
                         
                         const dCtx = drawCanvas.getContext('2d', { willReadFrequently: true });
-                        dCtx.setTransform(1, 0, 0, 1, 0, 0); dCtx.scale(dpr, dpr);
+                        dCtx.setTransform(1, 0, 0, 1, 0, 0); dCtx.scale(RENDER_SCALE, RENDER_SCALE);
 
                         pdfContainer.appendChild(pageDiv);
                         
-                        await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
+                        const scaledViewport = page.getViewport({ scale: baseScale * RENDER_SCALE });
+                        await page.render({ canvasContext: canvas.getContext('2d'), viewport: scaledViewport }).promise;
                         const textContent = await page.getTextContent(); pdfjsLib.renderTextLayer({ textContentSource: textContent, container: textLayerDiv, viewport: viewport, textDivs: [] });
 
                         const thumbDiv = document.createElement('div'); thumbDiv.className = 'pdf-thumb'; if (i === 1) thumbDiv.classList.add('active');
@@ -983,6 +1412,7 @@
 
             if (e.target.classList.contains('resize-handle')) {
                 action = 'resize'; selectedElement = e.target.parentElement; currentHandle = e.target.dataset.pos; 
+                window.bringToFront(selectedElement);
                 startX = mouseX; startY = mouseY;
                 startRect = { left: parseFloat(selectedElement.style.left), top: parseFloat(selectedElement.style.top), width: parseFloat(selectedElement.style.width || selectedElement.offsetWidth), height: parseFloat(selectedElement.style.height || selectedElement.offsetHeight) };
                 e.preventDefault(); e.stopPropagation(); return;
@@ -995,6 +1425,7 @@
                     selectedElement = clickedTextContent.parentElement; 
                     selectedElement.classList.add('selected'); 
                 }
+                window.bringToFront(selectedElement);
                 textSizeInput.value = parseInt(selectedElement.style.fontSize); 
                 e.stopPropagation(); 
                 return; 
@@ -1006,6 +1437,7 @@
                 window.deselectCurrent(); 
                 selectedElement = draggableTarget; 
                 selectedElement.classList.add('selected'); 
+                window.bringToFront(selectedElement);
                 if (selectedElement.classList.contains('text-wrapper')) textSizeInput.value = parseInt(selectedElement.style.fontSize);
                 startX = mouseX; startY = mouseY; 
                 startRect = { left: parseFloat(selectedElement.style.left), top: parseFloat(selectedElement.style.top) }; 
@@ -1015,18 +1447,51 @@
             
             window.deselectCurrent();
             
-            if (currentTool === 'mask' || currentTool === 'highlight') {
+            if (currentTool === 'mask') {
+                const maskType = document.querySelector('input[name="maskType"]:checked') ? document.querySelector('input[name="maskType"]:checked').value : 'rect';
+                if (maskType === 'rect') {
+                    action = 'draw'; startX = mouseX; startY = mouseY;
+                    drawingBox.style.left = startX + 'px'; drawingBox.style.top = startY + 'px';
+                    drawingBox.style.width = '0px'; drawingBox.style.height = '0px'; drawingBox.style.display = 'block';
+                } else {
+                    action = 'draw_freehand_mask';
+                    penPoints = [{x: mouseX, y: mouseY}];
+                    tempPathD = `M ${mouseX} ${mouseY}`;
+                    
+                    tempMaskSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                    tempMaskSvg.style.position = 'absolute';
+                    tempMaskSvg.style.top = '0';
+                    tempMaskSvg.style.left = '0';
+                    tempMaskSvg.style.width = '100%';
+                    tempMaskSvg.style.height = '100%';
+                    tempMaskSvg.style.pointerEvents = 'none';
+                    tempMaskSvg.style.zIndex = '9999';
+                    
+                    tempMaskPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    tempMaskPath.setAttribute("d", tempPathD);
+                    tempMaskPath.setAttribute("stroke", "black");
+                    tempMaskPath.setAttribute("stroke-width", penWidthInput.value);
+                    tempMaskPath.setAttribute("stroke-linecap", "round");
+                    tempMaskPath.setAttribute("stroke-linejoin", "round");
+                    tempMaskPath.setAttribute("fill", "none");
+                    
+                    tempMaskSvg.appendChild(tempMaskPath);
+                    workspace.appendChild(tempMaskSvg);
+                }
+            } else if (currentTool === 'highlight') {
                 action = 'draw'; startX = mouseX; startY = mouseY;
                 drawingBox.style.left = startX + 'px'; drawingBox.style.top = startY + 'px';
                 drawingBox.style.width = '0px'; drawingBox.style.height = '0px'; drawingBox.style.display = 'block';
             } else if (currentTool === 'text') {
                 const currentFontSize = textSizeInput.value + 'px'; const currentColor = toolColors['text']; 
-                const newText = window.createTextElement(mouseX + 'px', mouseY + 'px', '150px', '50px', '', currentFontSize, currentColor);
+                const newText = window.createTextElement((mouseX - 8) + 'px', (mouseY - 8) + 'px', '150px', '50px', '', currentFontSize, currentColor, 'left');
                 selectedElement = newText; newText.classList.add('selected'); setTimeout(() => { newText.querySelector('.text-content').focus(); }, 10);
             } else if (currentTool === 'pen' || currentTool === 'eraser') {
                 action = 'draw_pen'; 
                 const page = e.target.closest('.pdf-page'); activeCanvas = page ? page.querySelector('.drawing-canvas') : workspace.querySelector('.drawing-canvas');
                 if (!activeCanvas) return;
+                
+                window.bringToFront(activeCanvas);
                 
                 activeCanvasIndex = activeCanvas.dataset.canvasIndex; 
                 activeCtx = activeCanvas.getContext('2d');
@@ -1042,7 +1507,8 @@
         });
 
         document.addEventListener('pointermove', function(e) {
-            if (['pen', 'eraser'].includes(currentTool) && e.target.closest('#workspace-container')) {
+            const maskType = document.querySelector('input[name="maskType"]:checked') ? document.querySelector('input[name="maskType"]:checked').value : 'rect';
+            if ((['pen', 'eraser'].includes(currentTool) || (currentTool === 'mask' && maskType === 'free')) && e.target.closest('#workspace-container')) {
                 brushCursor.style.display = 'block'; brushCursor.style.left = e.clientX + 'px'; brushCursor.style.top = e.clientY + 'px';
             } else { brushCursor.style.display = 'none'; }
 
@@ -1056,6 +1522,10 @@
             if (action === 'draw') {
                 drawingBox.style.width = Math.abs(currentX - startX) + 'px'; drawingBox.style.height = Math.abs(currentY - startY) + 'px';
                 drawingBox.style.left = Math.min(currentX, startX) + 'px'; drawingBox.style.top = Math.min(currentY, startY) + 'px';
+            } else if (action === 'draw_freehand_mask' && tempMaskSvg) {
+                penPoints.push({x: currentX, y: currentY});
+                tempPathD += ` L ${currentX} ${currentY}`;
+                tempMaskPath.setAttribute("d", tempPathD);
             } else if (action === 'draw_pen' && activeCanvas && activeCtx) {
                 const canvasRect = activeCanvas.getBoundingClientRect();
                 const localX = (e.clientX - canvasRect.left) / zoomLevel; const localY = (e.clientY - canvasRect.top) / zoomLevel;
@@ -1082,6 +1552,7 @@
             if (!action) return;
             let stateChanged = false;
             if (action === 'pan') { action = null; return; }
+            
             if (action === 'draw') {
                 drawingBox.style.display = 'none';
                 if (parseFloat(drawingBox.style.width) >= 10 && parseFloat(drawingBox.style.height) >= 10) {
@@ -1095,15 +1566,36 @@
                     }
                     stateChanged = true;
                 }
+            } else if (action === 'draw_freehand_mask') {
+                if (tempMaskSvg) tempMaskSvg.remove();
+                if (penPoints.length > 2) {
+                    const pw = parseFloat(penWidthInput.value);
+                    const padding = pw / 2 + 2; 
+                    let minX = Math.min(...penPoints.map(p => p.x)) - padding;
+                    let minY = Math.min(...penPoints.map(p => p.y)) - padding;
+                    let maxX = Math.max(...penPoints.map(p => p.x)) + padding;
+                    let maxY = Math.max(...penPoints.map(p => p.y)) + padding;
+                    let w = maxX - minX;
+                    let h = maxY - minY;
+                    
+                    let d = penPoints.map((p, i) => `${i===0?'M':'L'} ${p.x - minX} ${p.y - minY}`).join(' ');
+                    
+                    const freeMask = window.createFreehandMaskElement(minX+'px', minY+'px', w+'px', h+'px', d, pw);
+                    window.deselectCurrent(); selectedElement = freeMask; selectedElement.classList.add('selected');
+                    stateChanged = true;
+                }
+                tempMaskSvg = null; tempMaskPath = null;
             } else if (action === 'draw_pen') { 
                 if (activeCtx) activeCtx.closePath(); 
                 if (activeCanvas && activeCanvasIndex !== null) {
                     window.currentCanvasStates[activeCanvasIndex] = activeCanvas.toDataURL();
                 }
-                penPoints = []; activeCanvas = null; activeCtx = null; activeCanvasIndex = null; stateChanged = true; 
+                activeCanvas = null; activeCtx = null; activeCanvasIndex = null; stateChanged = true; 
             } 
             else if (action === 'move' || action === 'resize') { stateChanged = true; }
-            action = null; if (stateChanged) window.saveState();
+            
+            action = null; penPoints = [];
+            if (stateChanged) window.saveState();
         });
 
         document.addEventListener('keydown', function(e) {
@@ -1113,14 +1605,21 @@
         });
         
         workspaceContainer.addEventListener('pointerleave', () => { brushCursor.style.display = 'none'; });
+        
         document.addEventListener('pointerdown', function(e) {
-            if (!e.target.closest('#workspace') && !e.target.closest('#toolbar') && !e.target.closest('#controls-row') && !e.target.closest('#header-row') && selectedElement) window.deselectCurrent();
+            if (!e.target.closest('#workspace') && !e.target.closest('#app-header') && !e.target.closest('#floating-tools-container') && !e.target.closest('.floating-ui') && !e.target.closest('#btn-focus-mode') && selectedElement) {
+                window.deselectCurrent();
+            }
         });
 
         document.getElementById('btn-download').addEventListener('click', async () => {
             if (uploadedImage.style.display === 'none' && pdfContainer.style.display === 'none') { alert('先に画像かPDFをアップロードしてください。'); return; }
-            window.deselectCurrent(); brushCursor.style.display = 'none'; loadingOverlay.style.display = 'flex'; 
-            loadingOverlay.querySelector('div').innerText = 'ファイルを作成中...';
+            window.deselectCurrent(); brushCursor.style.display = 'none'; 
+            
+            const loadingOverlay = document.getElementById('loading-overlay');
+            loadingOverlay.style.display = 'flex'; 
+            loadingOverlay.querySelectorAll('div')[1].innerText = 'ファイルを作成中...';
+            
             const originalZoom = zoomLevel; const originalScrollTop = workspaceContainer.scrollTop; const originalScrollLeft = workspaceContainer.scrollLeft;
             setZoom(1.0); workspaceContainer.style.overflow = 'visible'; workspaceContainer.style.height = 'auto';
             await new Promise(resolve => setTimeout(resolve, 300)); 
@@ -1146,7 +1645,7 @@
                 }
             } catch (error) { console.error("ダウンロードエラー:", error); alert("エラーが発生しました。"); } 
             finally {
-                workspaceContainer.style.overflow = 'auto'; workspaceContainer.style.height = '800px';
+                workspaceContainer.style.overflow = 'auto'; workspaceContainer.style.height = '100%';
                 setZoom(originalZoom); workspaceContainer.scrollTop = originalScrollTop; workspaceContainer.scrollLeft = originalScrollLeft;
                 loadingOverlay.style.display = 'none'; 
             }
