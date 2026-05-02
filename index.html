@@ -6,6 +6,7 @@
     <title>暗記マスキング - 無料のスマホ・PC対応 暗記シート作成アプリ</title>
     <meta name="description" content="スマホやPCが赤シート代わりに！毎日の勉強を効率化する、インストール不要の無料学習ツール「暗記マスキング」。お手持ちのPDFや画像に黒塗りマスキング！蛍光ペンやテキスト追加もできて、そのまま保存可能！">
     
+    <!-- ファビコン（サイトアイコン）の設定 -->
     <link rel="icon" type="image/png" href="favicon.png">
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -13,6 +14,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
+    <!-- モダンなプロ仕様アイコン（Google Material Symbols）を読み込み -->
+    <!-- 塗りつぶし（FILL）に対応させるためにパラメータを 0..1 に変更 -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0" />
 
     <style>
@@ -781,7 +784,8 @@
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-        const RENDER_SCALE = Math.max(window.devicePixelRatio || 1, 3.0); 
+        // ★解像度の設定を最適化（最大でも2.0倍までにして、巨大化によるフリーズを防止）
+        const RENDER_SCALE = Math.min(window.devicePixelRatio || 2, 2.0); 
         
         window.globalZIndex = 10;
         window.bringToFront = function(element) {
@@ -1261,7 +1265,8 @@
                     drawCanvas.height = workspace.offsetHeight * RENDER_SCALE;
                     drawCanvas.style.width = workspace.offsetWidth + 'px'; 
                     drawCanvas.style.height = workspace.offsetHeight + 'px';
-                    const ctx = drawCanvas.getContext('2d', { willReadFrequently: true });
+                    // ★GPUアクセラレーションを復活させるために willReadFrequently を削除
+                    const ctx = drawCanvas.getContext('2d');
                     ctx.setTransform(1, 0, 0, 1, 0, 0); 
                     ctx.scale(RENDER_SCALE, RENDER_SCALE);
                     ctx.clearRect(0, 0, workspace.offsetWidth, workspace.offsetHeight);
@@ -1362,7 +1367,8 @@
                         drawCanvas.style.height = viewport.height + 'px';
                         pageDiv.appendChild(drawCanvas);
                         
-                        const dCtx = drawCanvas.getContext('2d', { willReadFrequently: true });
+                        // ★GPUアクセラレーションを復活させるために willReadFrequently を削除
+                        const dCtx = drawCanvas.getContext('2d');
                         dCtx.setTransform(1, 0, 0, 1, 0, 0); dCtx.scale(RENDER_SCALE, RENDER_SCALE);
 
                         pdfContainer.appendChild(pageDiv);
