@@ -581,6 +581,9 @@
         
         // ★ツールカラーに shape (図形用) を追加
         const toolColors = { text: '#ef4444', highlight: '#f59e0b', pen: '#ef4444', shape: '#ef4444' };
+        
+        // ★追加：各ツールの太さを独立して保持するオブジェクト
+        const toolWidths = { pen: 15, eraser: 30, mask: 15, shape: 3 };
 
         document.getElementById('btn-focus-mode').addEventListener('click', function() {
             document.body.classList.toggle('focus-mode');
@@ -747,6 +750,12 @@
             document.getElementById('prop-pen-width').style.display = ['pen', 'eraser', 'shape'].includes(currentTool) || (currentTool === 'mask' && maskType === 'free') ? 'flex' : 'none';
             document.getElementById('prop-opacity').style.display = ['highlight', 'pen'].includes(currentTool) ? 'flex' : 'none';
             
+            // ★追加：現在のツールに合わせて太さスライダーの値を更新
+            if (['pen', 'eraser', 'mask', 'shape'].includes(currentTool)) {
+                penWidthSlider.value = toolWidths[currentTool];
+                penWidthInput.value = toolWidths[currentTool];
+            }
+
             const floatingProps = document.getElementById('floating-properties');
             if(floatingProps) {
                 floatingProps.style.display = ['text', 'highlight', 'pen', 'eraser', 'mask', 'shape'].includes(currentTool) ? 'flex' : 'none';
@@ -767,10 +776,16 @@
         
         updateToolbar();
 
-        penWidthSlider.addEventListener('input', (e) => { penWidthInput.value = e.target.value; updateBrushCursor(); });
+        penWidthSlider.addEventListener('input', (e) => { 
+            penWidthInput.value = e.target.value; 
+            toolWidths[currentTool] = parseFloat(e.target.value); // ★現在のツールに太さを保存
+            updateBrushCursor(); 
+        });
         penWidthInput.addEventListener('input', (e) => {
             let val = parseFloat(e.target.value); if (val < 0.5) val = 0.5; if (val > 100) val = 100;
-            penWidthSlider.value = val; updateBrushCursor();
+            penWidthSlider.value = val; 
+            toolWidths[currentTool] = val; // ★現在のツールに太さを保存
+            updateBrushCursor();
         });
 
         function updateBrushCursor() {
@@ -828,6 +843,7 @@
             if (selectedElement) { selectedElement.classList.remove('selected'); selectedElement = null; savedSelectionRange = null; }
         }
 
+        // ★修正箇所：Undo履歴の上限（MAX_HISTORY）を追加
         window.saveState = function() {
             const elements = Array.from(workspace.querySelectorAll('.canvas-element')).map(el => {
                 const isText = el.classList.contains('text-wrapper'); 
@@ -852,7 +868,16 @@
             });
             const canvasDataArray = [...window.currentCanvasStates];
             const canvasZIndexes = Array.from(workspace.querySelectorAll('.drawing-canvas')).map(c => c.style.zIndex);
-            window.historyArray = window.historyArray.slice(0, window.historyIndex + 1); window.historyArray.push({ elements, canvasDataArray, canvasZIndexes }); window.historyIndex++;
+            window.historyArray = window.historyArray.slice(0, window.historyIndex + 1); 
+            window.historyArray.push({ elements, canvasDataArray, canvasZIndexes }); 
+            window.historyIndex++;
+
+            // 履歴上限の追加
+            const MAX_HISTORY = 20;
+            if (window.historyArray.length > MAX_HISTORY) {
+                window.historyArray.shift();
+                window.historyIndex--;
+            }
         }
 
         function restoreState(index) {
@@ -876,6 +901,7 @@
             window.currentCanvasStates = [...state.canvasDataArray];
             const canvases = Array.from(workspace.querySelectorAll('.drawing-canvas'));
             
+            // ★修正箇所：canuses を canvases に修正
             canvases.forEach((c, i) => {
                 if (state.canvasZIndexes && state.canvasZIndexes[i]) {
                     c.style.zIndex = state.canvasZIndexes[i];
@@ -1316,7 +1342,68 @@
                 loadingOverlay.style.display = 'none';
             }
         });
+// ★追加：保存データからワークスペースに加工要素を展開する関数
+        function loadDataToWorkspace(projectData) {
+            // 既存の要素を一旦クリア
+            workspace.querySelectorAll('.canvas-element').forEach(el => el.remove());
+            window.deselectCurrent();
 
+            // 1. 図形・テキスト・マスクなどのDOM要素の復元
+            if (projectData.elements && projectData.elements.length > 0) {
+                projectData.elements.forEach(data => {
+                    let el;
+                    if (data.type === 'mask') el = window.createMaskElement(data.left, data.top, data.width, data.height);
+                    else if (data.type === 'shape') el = window.createShapeElement(data.left, data.top, data.width, data.height, data.shapeType, data.color, data.strokeWidth, data.lineDir);
+                    else if (data.type === 'freehand-mask') el = window.createFreehandMaskElement(data.left, data.top, data.width, data.height, data.pathD, data.strokeWidth);
+                    else if (data.type === 'highlight') el = window.createHighlightElement(data.left, data.top, data.width, data.height, data.backgroundColor);
+                    else el = window.createTextElement(data.left, data.top, data.width, data.height, data.content, data.fontSize, data.color, data.textAlign); 
+                    
+                    if (data.zIndex) {
+                        el.style.zIndex = data.zIndex;
+                        if (parseInt(data.zIndex) > window.globalZIndex) window.globalZIndex = parseInt(data.zIndex);
+                    }
+                });
+            }
+
+            // 2. ペン・消しゴム（Canvas）の描画状態の復元
+            if (projectData.canvasDataArray) {
+                window.currentCanvasStates = [...projectData.canvasDataArray];
+                const canvases = Array.from(workspace.querySelectorAll('.drawing-canvas'));
+                
+                canvases.forEach((c, i) => {
+                    // z-indexの復元
+                    if (projectData.canvasZIndexes && projectData.canvasZIndexes[i]) {
+                        c.style.zIndex = projectData.canvasZIndexes[i];
+                    } else {
+                        c.style.zIndex = '2';
+                    }
+                    
+                    const ctx = c.getContext('2d');
+                    ctx.save(); 
+                    ctx.setTransform(1, 0, 0, 1, 0, 0); 
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.clearRect(0, 0, c.width, c.height); 
+                    ctx.restore();
+                    
+                    if (window.currentCanvasStates[i]) {
+                        const img = new Image(); 
+                        img.onload = () => { 
+                            ctx.save(); 
+                            ctx.setTransform(1, 0, 0, 1, 0, 0); 
+                            ctx.globalCompositeOperation = 'source-over'; 
+                            ctx.drawImage(img, 0, 0); 
+                            ctx.restore(); 
+                        };
+                        img.src = window.currentCanvasStates[i];
+                    }
+                });
+            }
+
+            // 復元後、履歴（Undo用）に現在の状態を初期値として保存しておく
+            window.historyArray = [];
+            window.historyIndex = -1;
+            window.saveState();
+        }
         document.getElementById('projectInput').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
