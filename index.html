@@ -6,16 +6,13 @@
     <title>暗記マスキング - 登録不要のPDF・画像を黒塗りできる無料の学習用WEBアプリ！</title>
     <meta name="description" content="PDFや画像をアップロードして、覚えたい部分をサッと黒塗り！「暗記マスキング」は、画面上でカーソルを合わせるだけで答えを確認しながら勉強できる無料の学習WEBアプリです。毎日の学習をスマートに効率化します。">
     
-    <!-- ファビコン（サイトアイコン）の設定 -->
     <link rel="icon" type="image/png" href="favicon.png">
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- html2canvasは不要になったため削除しました -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
-    <!-- モダンなプロ仕様アイコン（Google Material Symbols）を読み込み -->
-    <!-- 塗りつぶし（FILL）に対応させるためにパラメータを 0..1 に変更 -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0" />
 
     <style>
@@ -206,10 +203,10 @@
         #main-area { flex-grow: 1; display: flex; position: relative; overflow: hidden; }
         
         #pdf-sidebar { width: 220px; height: 100%; background: #ffffff; border-right: 1px solid #e5e7eb; overflow-y: auto; display: none; flex-direction: column; align-items: center; padding: 20px 0; z-index: 10; box-shadow: 2px 0 8px rgba(0,0,0,0.02); }
-        .pdf-thumb { width: 80%; background: white; margin-bottom: 20px; border: 2px solid transparent; border-radius: 8px; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.1); transition: 0.2s; display: flex; flex-direction: column; align-items: center; padding-bottom: 8px; overflow: hidden; flex-shrink: 0; }
+        .pdf-thumb { width: 80%; background: white; margin-bottom: 20px; border: 2px solid transparent; border-radius: 8px; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.1); transition: 0.2s; display: flex; flex-direction: column; align-items: center; padding-bottom: 8px; overflow: hidden; flex-shrink: 0; min-height: 100px; }
         .pdf-thumb:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
         .pdf-thumb.active { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.3); }
-        .pdf-thumb canvas { width: 100%; height: auto; border-bottom: 1px solid #f3f4f6; margin-bottom: 8px; object-fit: contain; }
+        .pdf-thumb canvas { width: 100%; height: auto; border-bottom: 1px solid #f3f4f6; margin-bottom: 8px; object-fit: contain; background: #f9fafb; }
         .pdf-thumb span { font-size: 12px; font-weight: 700; color: #4b5563; }
 
         #workspace-outer { flex-grow: 1; position: relative; display: flex; overflow: hidden; background-color: #e5e7eb; }
@@ -267,7 +264,6 @@
         .text-wrapper.selected .text-content { pointer-events: auto; cursor: text; }
         .canvas-element.selected { transition: none; }
         
-        /* --- 追加: 図形要素のスタイル --- */
         .shape-element { background-color: transparent; border-radius: 2px; }
         .shape-element svg { pointer-events: none; display: block; overflow: visible; }
         .shape-element svg * { pointer-events: visibleStroke; cursor: pointer; }
@@ -296,7 +292,6 @@
     <header id="app-header" class="hideable-ui">
         <div class="header-top">
             
-            <!-- 左側：入力・読込系 -->
             <div class="header-title-group">
                 <div class="header-brand">
                     <h1>暗記マスキング</h1>
@@ -315,7 +310,6 @@
                 <input type="file" id="projectInput" accept=".amk">
             </div>
             
-            <!-- 右側：出力・保存系 -->
             <div class="header-actions">
                 <button class="btn btn-icon" id="btn-undo" title="元に戻す (Ctrl+Z)">
                     <span class="material-symbols-outlined">undo</span>
@@ -387,7 +381,6 @@
                         </div>
                     </span>
 
-                    <!-- ★追加：図形ツール用の種類切り替えスイッチ -->
                     <span class="prop-group" id="prop-shape-type">
                         <div class="mini-switch">
                             <input type="radio" id="shape-type-rect" name="shapeType" value="rect" checked>
@@ -467,7 +460,6 @@
                     <input type="radio" id="tool-text" name="currentTool" value="text">
                     <label for="tool-text" title="テキスト入力"><span class="material-symbols-outlined">text_fields</span></label>
                     
-                    <!-- ★追加：図形・直線ツール -->
                     <input type="radio" id="tool-shape" name="currentTool" value="shape">
                     <label for="tool-shape" title="図形・直線"><span class="material-symbols-outlined">category</span></label>
 
@@ -501,7 +493,6 @@
     </div>
 
     <script>
-        // 保存ドロップダウンの制御
         const btnSaveMenu = document.getElementById('btn-save-menu');
         const saveDropdownMenu = document.getElementById('save-dropdown-menu');
         
@@ -565,7 +556,9 @@
         window.historyArray = [];
         window.historyIndex = -1;
         let savedSelectionRange = null; 
+        
         let penPoints = [];
+        let rawPenPoints = []; 
         let totalPdfPages = 0;
 
         let activeCanvas = null;
@@ -575,14 +568,13 @@
         let tempMaskSvg = null;
         let tempMaskPath = null;
         let tempPathD = "";
+        
+        let currentDrawingShape = null; // ★追加：ドラッグ中に表示する図形要素
 
-        window.currentCanvasStates = [];
+        window.canvasDrawings = []; 
         let currentBackground = null;
         
-        // ★ツールカラーに shape (図形用) を追加
         const toolColors = { text: '#ef4444', highlight: '#f59e0b', pen: '#ef4444', shape: '#ef4444' };
-        
-        // ★追加：各ツールの太さを独立して保持するオブジェクト
         const toolWidths = { pen: 15, eraser: 30, mask: 15, shape: 3 };
 
         document.getElementById('btn-focus-mode').addEventListener('click', function() {
@@ -612,12 +604,22 @@
             if (action) {
                 if (action === 'draw_pen' && activeCtx) {
                     activeCtx.closePath();
-                    if (activeCanvas && activeCanvasIndex !== null) { window.currentCanvasStates[activeCanvasIndex] = activeCanvas.toDataURL(); }
+                    if (activeCanvas && activeCanvasIndex !== null) {
+                        window.canvasDrawings[activeCanvasIndex].push({
+                            tool: currentTool,
+                            points: rawPenPoints,
+                            width: parseFloat(penWidthInput.value),
+                            color: toolColors['pen'],
+                            opacity: penOpacityInput.value
+                        });
+                    }
                     window.saveState();
                 } else if (action === 'draw_freehand_mask' && tempMaskSvg) {
                     tempMaskSvg.remove(); tempMaskSvg = null; tempMaskPath = null;
+                } else if (action === 'draw_shape' && currentDrawingShape) {
+                    currentDrawingShape.remove(); currentDrawingShape = null;
                 }
-                action = null; penPoints = []; activeCanvas = null; activeCtx = null; activeCanvasIndex = null;
+                action = null; penPoints = []; rawPenPoints = []; activeCanvas = null; activeCtx = null; activeCanvasIndex = null;
                 drawingBox.style.display = 'none';
             }
         });
@@ -629,7 +631,6 @@
             }
         });
 
-        // ★キーボードショートカットの設定 (Ctrl+Z / Cmd+Z など)
         document.addEventListener('keydown', function(e) {
             if ((e.key === 'Delete' || e.key === 'Backspace') && selectedElement) {
                 if (!e.target.classList.contains('text-content') && e.target.tagName.toLowerCase() !== 'input') { 
@@ -750,7 +751,6 @@
             document.getElementById('prop-pen-width').style.display = ['pen', 'eraser', 'shape'].includes(currentTool) || (currentTool === 'mask' && maskType === 'free') ? 'flex' : 'none';
             document.getElementById('prop-opacity').style.display = ['highlight', 'pen'].includes(currentTool) ? 'flex' : 'none';
             
-            // ★追加：現在のツールに合わせて太さスライダーの値を更新
             if (['pen', 'eraser', 'mask', 'shape'].includes(currentTool)) {
                 penWidthSlider.value = toolWidths[currentTool];
                 penWidthInput.value = toolWidths[currentTool];
@@ -778,13 +778,13 @@
 
         penWidthSlider.addEventListener('input', (e) => { 
             penWidthInput.value = e.target.value; 
-            toolWidths[currentTool] = parseFloat(e.target.value); // ★現在のツールに太さを保存
+            toolWidths[currentTool] = parseFloat(e.target.value); 
             updateBrushCursor(); 
         });
         penWidthInput.addEventListener('input', (e) => {
             let val = parseFloat(e.target.value); if (val < 0.5) val = 0.5; if (val > 100) val = 100;
             penWidthSlider.value = val; 
-            toolWidths[currentTool] = val; // ★現在のツールに太さを保存
+            toolWidths[currentTool] = val; 
             updateBrushCursor();
         });
 
@@ -843,7 +843,49 @@
             if (selectedElement) { selectedElement.classList.remove('selected'); selectedElement = null; savedSelectionRange = null; }
         }
 
-        // ★修正箇所：Undo履歴の上限（MAX_HISTORY）を追加
+        function executeCanvasCommand(ctx, cmd) {
+            if (cmd.tool === 'legacy_base64') {
+                const img = new Image();
+                img.onload = () => {
+                    ctx.save();
+                    ctx.setTransform(1, 0, 0, 1, 0, 0);
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.drawImage(img, 0, 0);
+                    ctx.restore();
+                };
+                img.src = cmd.dataURL;
+                return;
+            }
+
+            const pts = cmd.points;
+            if (!pts || pts.length === 0) return;
+
+            ctx.beginPath();
+            ctx.lineWidth = cmd.width;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            if (cmd.tool === 'pen') {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.strokeStyle = hexToRgba(cmd.color, cmd.opacity);
+            } else {
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.strokeStyle = 'rgba(0,0,0,1)';
+            }
+
+            ctx.moveTo(pts[0].x, pts[0].y);
+            if (pts.length < 3) {
+                ctx.lineTo((pts[1] || pts[0]).x + 0.01, (pts[1] || pts[0]).y + 0.01);
+            } else {
+                for (let i = 1; i < pts.length - 1; i++) {
+                    const midX = (pts[i].x + pts[i + 1].x) / 2;
+                    const midY = (pts[i].y + pts[i + 1].y) / 2;
+                    ctx.quadraticCurveTo(pts[i].x, pts[i].y, midX, midY);
+                }
+                ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
+            }
+            ctx.stroke();
+        }
+
         window.saveState = function() {
             const elements = Array.from(workspace.querySelectorAll('.canvas-element')).map(el => {
                 const isText = el.classList.contains('text-wrapper'); 
@@ -866,13 +908,14 @@
                     lineDir: isShape ? el.dataset.lineDir : null
                 };
             });
-            const canvasDataArray = [...window.currentCanvasStates];
+            
+            const canvasCommandsArray = window.canvasDrawings.map(cmds => [...cmds]);
             const canvasZIndexes = Array.from(workspace.querySelectorAll('.drawing-canvas')).map(c => c.style.zIndex);
+            
             window.historyArray = window.historyArray.slice(0, window.historyIndex + 1); 
-            window.historyArray.push({ elements, canvasDataArray, canvasZIndexes }); 
+            window.historyArray.push({ elements, canvasCommandsArray, canvasZIndexes }); 
             window.historyIndex++;
 
-            // 履歴上限の追加
             const MAX_HISTORY = 20;
             if (window.historyArray.length > MAX_HISTORY) {
                 window.historyArray.shift();
@@ -898,38 +941,31 @@
                 }
             });
             
-            window.currentCanvasStates = [...state.canvasDataArray];
+            window.canvasDrawings = state.canvasCommandsArray.map(cmds => [...cmds]);
             const canvases = Array.from(workspace.querySelectorAll('.drawing-canvas'));
             
-            // ★修正箇所：canuses を canvases に修正
             canvases.forEach((c, i) => {
                 if (state.canvasZIndexes && state.canvasZIndexes[i]) {
                     c.style.zIndex = state.canvasZIndexes[i];
                 } else {
                     c.style.zIndex = '2';
                 }
-                const ctx = c.getContext('2d');
-                ctx.save(); 
-                ctx.setTransform(1, 0, 0, 1, 0, 0); 
-                ctx.globalCompositeOperation = 'source-over'; // ★ 透明モードを強制リセット
-                ctx.clearRect(0, 0, c.width, c.height); 
-                ctx.restore();
                 
-                if (window.currentCanvasStates[i]) {
-                    const img = new Image(); 
-                    img.onload = () => { 
-                        ctx.save(); 
-                        ctx.setTransform(1, 0, 0, 1, 0, 0); 
-                        ctx.globalCompositeOperation = 'source-over'; // ★ 画像描画時にも確実にリセット
-                        ctx.drawImage(img, 0, 0); 
-                        ctx.restore(); 
-                    };
-                    img.src = window.currentCanvasStates[i];
+                const pageDiv = c.closest('.pdf-page');
+                if (!pageDiv || pageDiv.dataset.rendered === "true") {
+                    const ctx = c.getContext('2d');
+                    ctx.save(); 
+                    ctx.setTransform(1, 0, 0, 1, 0, 0); 
+                    ctx.globalCompositeOperation = 'source-over'; 
+                    ctx.clearRect(0, 0, c.width, c.height); 
+                    ctx.restore();
+                    
+                    const cmds = window.canvasDrawings[i] || [];
+                    cmds.forEach(cmd => executeCanvasCommand(ctx, cmd));
                 }
             });
         }
 
-        // ★追加：図形生成用の関数
         window.createShapeElement = function(left, top, width, height, shapeType, color, strokeWidth, lineDir) {
             const wrapper = document.createElement('div');
             wrapper.className = `canvas-element shape-element`;
@@ -1072,9 +1108,9 @@
                 workspace.querySelectorAll('.canvas-element').forEach(e => e.remove()); 
                 workspace.querySelectorAll('.drawing-canvas').forEach((c, i) => { 
                     const ctx = c.getContext('2d'); ctx.save(); ctx.setTransform(1,0,0,1,0,0); 
-                    ctx.globalCompositeOperation = 'source-over'; // リセット
+                    ctx.globalCompositeOperation = 'source-over'; 
                     ctx.clearRect(0,0,c.width,c.height); ctx.restore(); 
-                    window.currentCanvasStates[i] = null; 
+                    window.canvasDrawings[i] = []; 
                 }); 
                 window.deselectCurrent(); 
             } 
@@ -1087,9 +1123,9 @@
                 workspace.querySelectorAll('.canvas-element').forEach(e => e.remove()); 
                 workspace.querySelectorAll('.drawing-canvas').forEach((c, i) => {
                     const ctx = c.getContext('2d'); ctx.save(); ctx.setTransform(1,0,0,1,0,0); 
-                    ctx.globalCompositeOperation = 'source-over'; // リセット
+                    ctx.globalCompositeOperation = 'source-over';
                     ctx.clearRect(0,0,c.width,c.height); ctx.restore();
-                    window.currentCanvasStates[i] = null; 
+                    window.canvasDrawings[i] = []; 
                 });
                 window.deselectCurrent(); window.saveState(); 
             } 
@@ -1106,7 +1142,7 @@
 
         function initWorkspace(isPdf = false) {
             workspace.querySelectorAll('.canvas-element').forEach(e => e.remove());
-            window.deselectCurrent(); window.historyArray = []; window.historyIndex = -1; window.currentCanvasStates = [];
+            window.deselectCurrent(); window.historyArray = []; window.historyIndex = -1; window.canvasDrawings = [];
             
             setTimeout(() => {
                 if (!isPdf) {
@@ -1130,7 +1166,7 @@
                 
                 workspace.querySelectorAll('.drawing-canvas').forEach((c, i) => {
                     c.dataset.canvasIndex = i;
-                    window.currentCanvasStates[i] = null;
+                    window.canvasDrawings[i] = []; 
                 });
                 
                 setZoom(1.0);
@@ -1172,7 +1208,70 @@
             pdfSidebar.style.display = isSidebarOpen ? 'flex' : 'none';
         });
 
-        // 共通化された背景読み込み
+        async function renderPdfPageAsync(pageDiv) {
+            pageDiv.dataset.rendered = "true";
+            const pageNum = parseInt(pageDiv.dataset.page);
+            try {
+                const page = await window.currentPdfDoc.getPage(pageNum);
+                const viewport = page.getViewport({ scale: window.pdfBaseScale });
+                
+                pageDiv.style.width = viewport.width + 'px'; 
+                pageDiv.style.height = viewport.height + 'px';
+                
+                const canvas = pageDiv.querySelector('canvas:not(.drawing-canvas)');
+                canvas.width = viewport.width * RENDER_SCALE; 
+                canvas.height = viewport.height * RENDER_SCALE; 
+                
+                const textLayerDiv = pageDiv.querySelector('.textLayer');
+                textLayerDiv.style.width = viewport.width + 'px'; 
+                textLayerDiv.style.height = viewport.height + 'px'; 
+                textLayerDiv.style.setProperty('--scale-factor', viewport.scale);
+                
+                const drawCanvas = pageDiv.querySelector('.drawing-canvas');
+                drawCanvas.width = viewport.width * RENDER_SCALE; 
+                drawCanvas.height = viewport.height * RENDER_SCALE;
+                const dCtx = drawCanvas.getContext('2d');
+                dCtx.setTransform(1, 0, 0, 1, 0, 0); 
+                dCtx.scale(RENDER_SCALE, RENDER_SCALE);
+
+                const scaledViewport = page.getViewport({ scale: window.pdfBaseScale * RENDER_SCALE });
+                await page.render({ canvasContext: canvas.getContext('2d'), viewport: scaledViewport }).promise;
+                
+                const textContent = await page.getTextContent(); 
+                pdfjsLib.renderTextLayer({ textContentSource: textContent, container: textLayerDiv, viewport: viewport, textDivs: [] });
+
+                const canvasIndex = parseInt(drawCanvas.dataset.canvasIndex);
+                if (window.canvasDrawings && window.canvasDrawings[canvasIndex]) {
+                    const cmds = window.canvasDrawings[canvasIndex];
+                    dCtx.save(); 
+                    dCtx.setTransform(1, 0, 0, 1, 0, 0); 
+                    dCtx.globalCompositeOperation = 'source-over';
+                    dCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height); 
+                    dCtx.restore();
+                    cmds.forEach(cmd => executeCanvasCommand(dCtx, cmd));
+                }
+            } catch(e) {
+                console.error("Page rendering failed", e);
+            }
+        }
+
+        async function renderPdfThumbAsync(thumbDiv) {
+            thumbDiv.dataset.rendered = "true";
+            const pageNum = parseInt(thumbDiv.dataset.page);
+            try {
+                const page = await window.currentPdfDoc.getPage(pageNum);
+                const thumbScale = 150 / window.pdfViewport1.width; 
+                const thumbViewport = page.getViewport({ scale: thumbScale });
+                
+                const thumbCanvas = thumbDiv.querySelector('canvas');
+                thumbCanvas.width = thumbViewport.width; 
+                thumbCanvas.height = thumbViewport.height;
+                await page.render({ canvasContext: thumbCanvas.getContext('2d'), viewport: thumbViewport }).promise;
+            } catch(e) {
+                console.error("Thumb rendering failed", e);
+            }
+        }
+
         async function loadBackground(bgData) {
             pdfSidebar.innerHTML = ''; document.getElementById('floating-top-left').style.display = 'none';
             isSidebarOpen = false; pdfSidebar.style.display = 'none';
@@ -1194,54 +1293,89 @@
                         totalPdfPages = pdf.numPages; pageTotal.innerText = totalPdfPages; pageInput.max = totalPdfPages; pageInput.value = 1;
                         document.getElementById('floating-top-left').style.display = 'flex';
 
-                        const page1 = await pdf.getPage(1); const viewport1 = page1.getViewport({ scale: 1.0 });
-                        const containerW = workspaceContainer.clientWidth; const baseScale = (containerW * 0.9) / viewport1.width;
+                        const page1 = await pdf.getPage(1); 
+                        const viewport1 = page1.getViewport({ scale: 1.0 });
+                        const containerW = workspaceContainer.clientWidth; 
+                        const baseScale = (containerW * 0.9) / viewport1.width;
+                        const defaultViewport = page1.getViewport({ scale: baseScale });
+                        
+                        window.currentPdfDoc = pdf;
+                        window.pdfBaseScale = baseScale;
+                        window.pdfViewport1 = viewport1; 
+                        
+                        if (window.pageObserver) window.pageObserver.disconnect();
+                        if (window.thumbObserver) window.thumbObserver.disconnect();
+                        
+                        window.pageObserver = new IntersectionObserver((entries) => {
+                            entries.forEach(entry => {
+                                if (entry.isIntersecting && entry.target.dataset.rendered !== "true") {
+                                    renderPdfPageAsync(entry.target);
+                                }
+                            });
+                        }, { root: workspaceContainer, rootMargin: '800px 0px' });
+
+                        window.thumbObserver = new IntersectionObserver((entries) => {
+                            entries.forEach(entry => {
+                                if (entry.isIntersecting && entry.target.dataset.rendered !== "true") {
+                                    renderPdfThumbAsync(entry.target);
+                                }
+                            });
+                        }, { root: pdfSidebar, rootMargin: '300px 0px' });
 
                         for (let i = 1; i <= pdf.numPages; i++) {
-                            const page = await pdf.getPage(i); const viewport = page.getViewport({ scale: baseScale });
-                            
-                            const pageDiv = document.createElement('div'); pageDiv.className = 'pdf-page'; pageDiv.id = `pdf-page-${i}`; pageDiv.dataset.page = i;
-                            pageDiv.style.width = viewport.width + 'px'; pageDiv.style.height = viewport.height + 'px';
+                            const pageDiv = document.createElement('div'); 
+                            pageDiv.className = 'pdf-page'; 
+                            pageDiv.id = `pdf-page-${i}`; 
+                            pageDiv.dataset.page = i;
+                            pageDiv.dataset.rendered = "false";
+                            pageDiv.style.width = defaultViewport.width + 'px'; 
+                            pageDiv.style.height = defaultViewport.height + 'px';
                             
                             const canvas = document.createElement('canvas'); 
-                            canvas.width = viewport.width * RENDER_SCALE; 
-                            canvas.height = viewport.height * RENDER_SCALE; 
                             canvas.style.display = 'block'; 
-                            canvas.style.width = viewport.width + 'px'; 
-                            canvas.style.height = viewport.height + 'px';
+                            canvas.style.width = '100%'; 
+                            canvas.style.height = '100%';
                             pageDiv.appendChild(canvas);
                             
-                            const textLayerDiv = document.createElement('div'); textLayerDiv.className = 'textLayer'; textLayerDiv.style.width = viewport.width + 'px'; textLayerDiv.style.height = viewport.height + 'px'; textLayerDiv.style.setProperty('--scale-factor', viewport.scale); pageDiv.appendChild(textLayerDiv);
+                            const textLayerDiv = document.createElement('div'); 
+                            textLayerDiv.className = 'textLayer'; 
+                            textLayerDiv.style.width = defaultViewport.width + 'px'; 
+                            textLayerDiv.style.height = defaultViewport.height + 'px';
+                            pageDiv.appendChild(textLayerDiv);
                             
                             const drawCanvas = document.createElement('canvas');
                             drawCanvas.className = 'drawing-canvas';
                             drawCanvas.style.position = 'absolute'; drawCanvas.style.top = '0'; drawCanvas.style.left = '0';
                             drawCanvas.style.pointerEvents = 'none'; drawCanvas.style.zIndex = '2';
-                            
-                            drawCanvas.width = viewport.width * RENDER_SCALE; 
-                            drawCanvas.height = viewport.height * RENDER_SCALE;
-                            drawCanvas.style.width = viewport.width + 'px'; 
-                            drawCanvas.style.height = viewport.height + 'px';
+                            drawCanvas.style.width = '100%';
+                            drawCanvas.style.height = '100%';
                             pageDiv.appendChild(drawCanvas);
                             
-                            const dCtx = drawCanvas.getContext('2d');
-                            dCtx.setTransform(1, 0, 0, 1, 0, 0); dCtx.scale(RENDER_SCALE, RENDER_SCALE);
-
                             pdfContainer.appendChild(pageDiv);
-                            
-                            const scaledViewport = page.getViewport({ scale: baseScale * RENDER_SCALE });
-                            await page.render({ canvasContext: canvas.getContext('2d'), viewport: scaledViewport }).promise;
-                            const textContent = await page.getTextContent(); pdfjsLib.renderTextLayer({ textContentSource: textContent, container: textLayerDiv, viewport: viewport, textDivs: [] });
+                            window.pageObserver.observe(pageDiv);
 
-                            const thumbDiv = document.createElement('div'); thumbDiv.className = 'pdf-thumb'; if (i === 1) thumbDiv.classList.add('active');
-                            thumbDiv.dataset.page = i; thumbDiv.innerHTML = `<span>Page ${i}</span>`;
-                            const thumbScale = 150 / viewport1.width; const thumbViewport = page.getViewport({ scale: thumbScale });
-                            const thumbCanvas = document.createElement('canvas'); thumbCanvas.width = thumbViewport.width; thumbCanvas.height = thumbViewport.height;
-                            thumbDiv.insertBefore(thumbCanvas, thumbDiv.firstChild); pdfSidebar.appendChild(thumbDiv);
-                            page.render({ canvasContext: thumbCanvas.getContext('2d'), viewport: thumbViewport });
+                            const thumbDiv = document.createElement('div'); 
+                            thumbDiv.className = 'pdf-thumb'; 
+                            if (i === 1) thumbDiv.classList.add('active');
+                            thumbDiv.dataset.page = i; 
+                            thumbDiv.dataset.rendered = "false";
+                            
+                            const thumbCanvas = document.createElement('canvas'); 
+                            const thumbScale = 150 / viewport1.width; 
+                            thumbCanvas.width = viewport1.width * thumbScale; 
+                            thumbCanvas.height = viewport1.height * thumbScale;
+                            thumbDiv.appendChild(thumbCanvas);
+                            
+                            const thumbSpan = document.createElement('span');
+                            thumbSpan.innerText = `Page ${i}`;
+                            thumbDiv.appendChild(thumbSpan);
+                            
+                            pdfSidebar.appendChild(thumbDiv);
+                            window.thumbObserver.observe(thumbDiv);
                             
                             thumbDiv.addEventListener('click', () => { pageInput.value = i; pageInput.dispatchEvent(new Event('change')); });
                         }
+                        
                         loadingOverlay.style.display = 'none'; 
                         initWorkspace(true);
                         setTimeout(resolve, 100);
@@ -1315,14 +1449,14 @@
                     };
                 });
                 
-                const canvasDataArray = [...window.currentCanvasStates];
+                const canvasCommandsArray = window.canvasDrawings.map(cmds => [...cmds]);
                 const canvasZIndexes = Array.from(workspace.querySelectorAll('.drawing-canvas')).map(c => c.style.zIndex);
                 
                 const projectData = {
                     version: 1,
                     background: currentBackground,
                     elements: elements,
-                    canvasDataArray: canvasDataArray,
+                    canvasCommandsArray: canvasCommandsArray,
                     canvasZIndexes: canvasZIndexes
                 };
                 
@@ -1342,13 +1476,11 @@
                 loadingOverlay.style.display = 'none';
             }
         });
-// ★追加：保存データからワークスペースに加工要素を展開する関数
+
         function loadDataToWorkspace(projectData) {
-            // 既存の要素を一旦クリア
             workspace.querySelectorAll('.canvas-element').forEach(el => el.remove());
             window.deselectCurrent();
 
-            // 1. 図形・テキスト・マスクなどのDOM要素の復元
             if (projectData.elements && projectData.elements.length > 0) {
                 projectData.elements.forEach(data => {
                     let el;
@@ -1365,19 +1497,24 @@
                 });
             }
 
-            // 2. ペン・消しゴム（Canvas）の描画状態の復元
-            if (projectData.canvasDataArray) {
-                window.currentCanvasStates = [...projectData.canvasDataArray];
-                const canvases = Array.from(workspace.querySelectorAll('.drawing-canvas'));
+            if (projectData.canvasCommandsArray) {
+                window.canvasDrawings = projectData.canvasCommandsArray;
+            } else if (projectData.canvasDataArray) {
+                window.canvasDrawings = projectData.canvasDataArray.map(data => 
+                    data ? [{ tool: 'legacy_base64', dataURL: data }] : []
+                );
+            }
+
+            const canvases = Array.from(workspace.querySelectorAll('.drawing-canvas'));
+            canvases.forEach((c, i) => {
+                if (projectData.canvasZIndexes && projectData.canvasZIndexes[i]) {
+                    c.style.zIndex = projectData.canvasZIndexes[i];
+                } else {
+                    c.style.zIndex = '2';
+                }
                 
-                canvases.forEach((c, i) => {
-                    // z-indexの復元
-                    if (projectData.canvasZIndexes && projectData.canvasZIndexes[i]) {
-                        c.style.zIndex = projectData.canvasZIndexes[i];
-                    } else {
-                        c.style.zIndex = '2';
-                    }
-                    
+                const pageDiv = c.closest('.pdf-page');
+                if (!pageDiv || pageDiv.dataset.rendered === "true") {
                     const ctx = c.getContext('2d');
                     ctx.save(); 
                     ctx.setTransform(1, 0, 0, 1, 0, 0); 
@@ -1385,25 +1522,16 @@
                     ctx.clearRect(0, 0, c.width, c.height); 
                     ctx.restore();
                     
-                    if (window.currentCanvasStates[i]) {
-                        const img = new Image(); 
-                        img.onload = () => { 
-                            ctx.save(); 
-                            ctx.setTransform(1, 0, 0, 1, 0, 0); 
-                            ctx.globalCompositeOperation = 'source-over'; 
-                            ctx.drawImage(img, 0, 0); 
-                            ctx.restore(); 
-                        };
-                        img.src = window.currentCanvasStates[i];
-                    }
-                });
-            }
+                    const cmds = window.canvasDrawings[i] || [];
+                    cmds.forEach(cmd => executeCanvasCommand(ctx, cmd));
+                }
+            });
 
-            // 復元後、履歴（Undo用）に現在の状態を初期値として保存しておく
             window.historyArray = [];
             window.historyIndex = -1;
             window.saveState();
         }
+
         document.getElementById('projectInput').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -1467,7 +1595,6 @@
                 return; 
             }
 
-            // ★ 選択可能要素に .shape-element を追加
             const draggableTarget = e.target.closest('.mask, .text-wrapper, .highlight-box, .shape-element');
             if (draggableTarget && !['pen', 'eraser'].includes(currentTool)) {
                 action = 'move'; 
@@ -1516,10 +1643,12 @@
                     workspace.appendChild(tempMaskSvg);
                 }
             } else if (currentTool === 'shape') {
-                // ★ 図形ツール開始
                 action = 'draw_shape'; startX = mouseX; startY = mouseY;
-                drawingBox.style.left = startX + 'px'; drawingBox.style.top = startY + 'px';
-                drawingBox.style.width = '0px'; drawingBox.style.height = '0px'; drawingBox.style.display = 'block';
+                const shapeType = document.querySelector('input[name="shapeType"]:checked').value;
+                const strokeW = penWidthInput.value;
+                const col = toolColors['shape'];
+                currentDrawingShape = window.createShapeElement(startX+'px', startY+'px', '0px', '0px', shapeType, col, strokeW, '\\');
+                currentDrawingShape.style.pointerEvents = 'none';
             } else if (currentTool === 'highlight') {
                 action = 'draw'; startX = mouseX; startY = mouseY;
                 drawingBox.style.left = startX + 'px'; drawingBox.style.top = startY + 'px';
@@ -1540,7 +1669,8 @@
                 const canvasRect = activeCanvas.getBoundingClientRect();
                 const localX = (e.clientX - canvasRect.left) / zoomLevel; const localY = (e.clientY - canvasRect.top) / zoomLevel;
 
-                penPoints = [{x: localX, y: localY}]; 
+                penPoints = [{x: localX, y: localY}];
+                rawPenPoints = [{x: localX, y: localY}]; 
                 activeCtx.beginPath(); activeCtx.moveTo(localX, localY); activeCtx.lineWidth = parseFloat(penWidthInput.value); activeCtx.lineCap = 'round'; activeCtx.lineJoin = 'round';
                 if (currentTool === 'pen') { activeCtx.globalCompositeOperation = 'source-over'; activeCtx.strokeStyle = hexToRgba(toolColors['pen'], penOpacityInput.value); } 
                 else { activeCtx.globalCompositeOperation = 'destination-out'; activeCtx.strokeStyle = 'rgba(0,0,0,1)'; }
@@ -1561,9 +1691,33 @@
             }
             const rect = workspace.getBoundingClientRect(); let currentX = Math.max(0, Math.min((e.clientX - rect.left) / zoomLevel, workspace.offsetWidth)); let currentY = Math.max(0, Math.min((e.clientY - rect.top) / zoomLevel, workspace.offsetHeight));
             
-            if (action === 'draw' || action === 'draw_shape') {
+            if (action === 'draw') {
                 drawingBox.style.width = Math.abs(currentX - startX) + 'px'; drawingBox.style.height = Math.abs(currentY - startY) + 'px';
                 drawingBox.style.left = Math.min(currentX, startX) + 'px'; drawingBox.style.top = Math.min(currentY, startY) + 'px';
+            } else if (action === 'draw_shape' && currentDrawingShape) {
+                let minX = Math.min(startX, currentX);
+                let minY = Math.min(startY, currentY);
+                let w = Math.abs(currentX - startX);
+                let h = Math.abs(currentY - startY);
+                let lineDir = (startX < currentX && startY > currentY) || (startX > currentX && startY < currentY) ? '/' : '\\';
+
+                currentDrawingShape.style.left = minX + 'px';
+                currentDrawingShape.style.top = minY + 'px';
+                currentDrawingShape.style.width = w + 'px';
+                currentDrawingShape.style.height = h + 'px';
+                currentDrawingShape.dataset.lineDir = lineDir;
+
+                const shapeType = currentDrawingShape.dataset.shapeType;
+                if (shapeType === 'line') {
+                    const shapeNode = currentDrawingShape.querySelector('svg > line');
+                    if (lineDir === '/') {
+                        shapeNode.setAttribute('x1', '0'); shapeNode.setAttribute('y1', '100%');
+                        shapeNode.setAttribute('x2', '100%'); shapeNode.setAttribute('y2', '0');
+                    } else {
+                        shapeNode.setAttribute('x1', '0'); shapeNode.setAttribute('y1', '0');
+                        shapeNode.setAttribute('x2', '100%'); shapeNode.setAttribute('y2', '100%');
+                    }
+                }
             } else if (action === 'draw_freehand_mask' && tempMaskSvg) {
                 penPoints.push({x: currentX, y: currentY});
                 tempPathD += ` L ${currentX} ${currentY}`;
@@ -1573,6 +1727,7 @@
                 const localX = (e.clientX - canvasRect.left) / zoomLevel; const localY = (e.clientY - canvasRect.top) / zoomLevel;
 
                 penPoints.push({x: localX, y: localY});
+                rawPenPoints.push({x: localX, y: localY}); 
                 if (penPoints.length >= 3) {
                     const last2 = penPoints[penPoints.length - 3]; const last1 = penPoints[penPoints.length - 2]; const curr = penPoints[penPoints.length - 1];
                     const midX = (last1.x + curr.x) / 2; const midY = (last1.y + curr.y) / 2;
@@ -1609,30 +1764,23 @@
                     stateChanged = true;
                 }
             } else if (action === 'draw_shape') {
-                drawingBox.style.display = 'none';
-                const rect = workspace.getBoundingClientRect(); 
-                const currentX = Math.max(0, Math.min((e.clientX - rect.left) / zoomLevel, workspace.offsetWidth)); 
-                const currentY = Math.max(0, Math.min((e.clientY - rect.top) / zoomLevel, workspace.offsetHeight));
-                
-                let w = Math.abs(currentX - startX);
-                let h = Math.abs(currentY - startY);
-                
-                // ★ 直線などを描くときに消えないように修正
-                if (Math.hypot(w, h) >= 5) {
-                    let minX = Math.min(startX, currentX);
-                    let minY = Math.min(startY, currentY);
-                    let lineDir = (startX < currentX && startY > currentY) || (startX > currentX && startY < currentY) ? '/' : '\\';
+                if (currentDrawingShape) {
+                    let w = parseFloat(currentDrawingShape.style.width);
+                    let h = parseFloat(currentDrawingShape.style.height);
                     
-                    if (w < 4) { w = 4; minX -= 2; }
-                    if (h < 4) { h = 4; minY -= 2; }
-                    
-                    const shapeType = document.querySelector('input[name="shapeType"]:checked').value;
-                    const strokeW = penWidthInput.value;
-                    const col = toolColors['shape'];
-                    
-                    const shapeEl = window.createShapeElement(minX+'px', minY+'px', w+'px', h+'px', shapeType, col, strokeW, lineDir);
-                    window.deselectCurrent(); selectedElement = shapeEl; selectedElement.classList.add('selected');
-                    stateChanged = true;
+                    if (Math.hypot(w, h) >= 5) {
+                        if (w < 4) { w = 4; currentDrawingShape.style.width = '4px'; currentDrawingShape.style.left = (parseFloat(currentDrawingShape.style.left) - 2) + 'px'; }
+                        if (h < 4) { h = 4; currentDrawingShape.style.height = '4px'; currentDrawingShape.style.top = (parseFloat(currentDrawingShape.style.top) - 2) + 'px'; }
+                        
+                        currentDrawingShape.style.pointerEvents = '';
+                        window.deselectCurrent(); 
+                        selectedElement = currentDrawingShape; 
+                        selectedElement.classList.add('selected');
+                        stateChanged = true;
+                    } else {
+                        currentDrawingShape.remove();
+                    }
+                    currentDrawingShape = null;
                 }
             } else if (action === 'draw_freehand_mask') {
                 if (tempMaskSvg) tempMaskSvg.remove();
@@ -1656,13 +1804,19 @@
             } else if (action === 'draw_pen') { 
                 if (activeCtx) activeCtx.closePath(); 
                 if (activeCanvas && activeCanvasIndex !== null) {
-                    window.currentCanvasStates[activeCanvasIndex] = activeCanvas.toDataURL();
+                    window.canvasDrawings[activeCanvasIndex].push({
+                        tool: currentTool,
+                        points: rawPenPoints,
+                        width: parseFloat(penWidthInput.value),
+                        color: toolColors['pen'],
+                        opacity: penOpacityInput.value
+                    });
                 }
                 activeCanvas = null; activeCtx = null; activeCanvasIndex = null; stateChanged = true; 
             } 
             else if (action === 'move' || action === 'resize') { stateChanged = true; }
             
-            action = null; penPoints = [];
+            action = null; penPoints = []; rawPenPoints = [];
             if (stateChanged) window.saveState();
         });
         
@@ -1674,7 +1828,80 @@
             }
         });
 
-        // 画像/PDFの書き出し処理
+        function drawDOMElementToCanvas(ctx, data) {
+            const left = parseFloat(data.left || 0);
+            const top = parseFloat(data.top || 0);
+            const width = parseFloat(data.width || 0);
+            const height = parseFloat(data.height || 0);
+
+            ctx.save();
+            ctx.translate(left, top);
+
+            if (data.type === 'mask') {
+                ctx.fillStyle = 'black';
+                ctx.fillRect(0, 0, width, height);
+            } else if (data.type === 'highlight') {
+                ctx.globalCompositeOperation = 'multiply';
+                ctx.fillStyle = data.backgroundColor;
+                ctx.fillRect(0, 0, width, height);
+            } else if (data.type === 'freehand-mask') {
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = parseFloat(data.strokeWidth || 15);
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.stroke(new Path2D(data.pathD));
+            } else if (data.type === 'shape') {
+                ctx.strokeStyle = data.color;
+                ctx.lineWidth = parseFloat(data.strokeWidth || 3);
+                ctx.beginPath();
+                if (data.shapeType === 'rect') {
+                    ctx.strokeRect(0, 0, width, height);
+                } else if (data.shapeType === 'circle') {
+                    ctx.ellipse(width/2, height/2, width/2, height/2, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                } else if (data.shapeType === 'line') {
+                    if (data.lineDir === '/') {
+                        ctx.moveTo(0, height);
+                        ctx.lineTo(width, 0);
+                    } else {
+                        ctx.moveTo(0, 0);
+                        ctx.lineTo(width, height);
+                    }
+                    ctx.stroke();
+                }
+            } else if (data.type === 'text') {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = data.content;
+                document.body.appendChild(tempDiv);
+                const text = tempDiv.innerText;
+                document.body.removeChild(tempDiv);
+
+                ctx.translate(8, 8); 
+                ctx.fillStyle = data.color;
+                ctx.font = `600 ${data.fontSize || '20px'} sans-serif`;
+                ctx.textBaseline = 'top';
+                
+                let x = 0;
+                if (data.textAlign === 'center') {
+                    ctx.textAlign = 'center';
+                    x = (width - 16) / 2;
+                } else if (data.textAlign === 'right') {
+                    ctx.textAlign = 'right';
+                    x = width - 16;
+                } else {
+                    ctx.textAlign = 'left';
+                }
+
+                const lines = text.split('\n');
+                const lineHeight = parseFloat(data.fontSize || 20) * 1.2;
+                lines.forEach((line, i) => {
+                    ctx.fillText(line, x, i * lineHeight);
+                });
+            }
+
+            ctx.restore();
+        }
+
         document.getElementById('btn-download-menu').addEventListener('click', async () => {
             saveDropdownMenu.classList.remove('show');
             if (uploadedImage.style.display === 'none' && pdfContainer.style.display === 'none') { alert('先に画像かPDFを新規作成で開いてください。'); return; }
@@ -1682,35 +1909,85 @@
             
             const loadingOverlay = document.getElementById('loading-overlay');
             loadingOverlay.style.display = 'flex'; 
-            loadingOverlay.querySelectorAll('div')[1].innerText = 'ファイルを作成中...';
+            loadingOverlay.querySelectorAll('div')[1].innerText = 'ネイティブ書き出し中...';
             
-            const originalZoom = zoomLevel; const originalScrollTop = workspaceContainer.scrollTop; const originalScrollLeft = workspaceContainer.scrollLeft;
-            setZoom(1.0); workspaceContainer.style.overflow = 'visible'; workspaceContainer.style.height = 'auto';
-            await new Promise(resolve => setTimeout(resolve, 300)); 
+            await new Promise(resolve => setTimeout(resolve, 50)); 
 
             try {
+                const state = window.historyArray[window.historyIndex] || { elements: [], canvasCommandsArray: [] };
+                
                 if (uploadedImage.style.display === 'block') {
-                    const canvas = await html2canvas(workspace, { scale: 2, useCORS: true, backgroundColor: null });
-                    const link = document.createElement('a'); link.download = '暗記マスキング_画像.png'; link.href = canvas.toDataURL('image/png'); link.click();
-                } else if (pdfContainer.style.display === 'block') {
-                    const { jsPDF } = window.jspdf; const pdf = new jsPDF('p', 'pt', 'a4'); 
-                    const canvas = await html2canvas(workspace, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-                    const imgData = canvas.toDataURL('image/jpeg', 0.95);
-                    const pdfWidth = pdf.internal.pageSize.getWidth(); const pdfHeight = pdf.internal.pageSize.getHeight();
-                    const imgProps = pdf.getImageProperties(imgData); const imgHeightInPdf = (imgProps.height * pdfWidth) / imgProps.width;
-                    let heightLeft = imgHeightInPdf; let position = 0; 
+                    const cssWidth = parseFloat(uploadedImage.style.width);
+                    const cssHeight = parseFloat(uploadedImage.style.height);
                     
-                    pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeightInPdf); heightLeft -= pdfHeight;
-                    while (heightLeft > 0) {
-                        position = heightLeft - imgHeightInPdf; pdf.addPage();
-                        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeightInPdf); heightLeft -= pdfHeight;
+                    const exportCanvas = document.createElement('canvas');
+                    exportCanvas.width = cssWidth * RENDER_SCALE;
+                    exportCanvas.height = cssHeight * RENDER_SCALE;
+                    const eCtx = exportCanvas.getContext('2d');
+                    
+                    eCtx.drawImage(uploadedImage, 0, 0, exportCanvas.width, exportCanvas.height);
+                    
+                    eCtx.scale(RENDER_SCALE, RENDER_SCALE);
+                    
+                    const cmds = state.canvasCommandsArray[0] || [];
+                    cmds.forEach(cmd => executeCanvasCommand(eCtx, cmd));
+                    
+                    state.elements.forEach(el => drawDOMElementToCanvas(eCtx, el));
+                    
+                    const link = document.createElement('a'); 
+                    link.download = '暗記マスキング_画像.png'; 
+                    link.href = exportCanvas.toDataURL('image/png'); 
+                    link.click();
+
+                } else if (pdfContainer.style.display === 'block') {
+                    const { jsPDF } = window.jspdf; 
+                    let pdf = null;
+                    
+                    for (let i = 1; i <= totalPdfPages; i++) {
+                        loadingOverlay.querySelectorAll('div')[1].innerText = `PDFを生成中... (${i}/${totalPdfPages})`;
+                        await new Promise(r => setTimeout(r, 10));
+                        
+                        const page = await window.currentPdfDoc.getPage(i);
+                        const viewport = page.getViewport({ scale: window.pdfBaseScale * RENDER_SCALE });
+                        const cssViewport = page.getViewport({ scale: window.pdfBaseScale });
+                        
+                        const exportCanvas = document.createElement('canvas');
+                        exportCanvas.width = viewport.width;
+                        exportCanvas.height = viewport.height;
+                        const eCtx = exportCanvas.getContext('2d');
+                        
+                        await page.render({ canvasContext: eCtx, viewport: viewport }).promise;
+                        
+                        eCtx.save();
+                        eCtx.scale(RENDER_SCALE, RENDER_SCALE);
+                        
+                        const cmds = state.canvasCommandsArray[i-1] || [];
+                        cmds.forEach(cmd => executeCanvasCommand(eCtx, cmd));
+                        
+                        const pageDiv = document.getElementById(`pdf-page-${i}`);
+                        const pageTop = pageDiv ? pageDiv.offsetTop : 0;
+                        
+                        eCtx.translate(0, -pageTop);
+                        state.elements.forEach(el => drawDOMElementToCanvas(eCtx, el));
+                        eCtx.restore();
+                        
+                        const imgData = exportCanvas.toDataURL('image/jpeg', 0.95);
+                        const pdfPageWidth = cssViewport.width * 0.75; 
+                        const pdfPageHeight = cssViewport.height * 0.75; 
+                        
+                        if (!pdf) {
+                            pdf = new jsPDF(cssViewport.width > cssViewport.height ? 'l' : 'p', 'pt', [pdfPageWidth, pdfPageHeight]);
+                        } else {
+                            pdf.addPage([pdfPageWidth, pdfPageHeight], cssViewport.width > cssViewport.height ? 'l' : 'p');
+                        }
+                        pdf.addImage(imgData, 'JPEG', 0, 0, pdfPageWidth, pdfPageHeight);
                     }
                     pdf.save('暗記マスキング_PDF.pdf');
                 }
-            } catch (error) { console.error("ダウンロードエラー:", error); alert("エラーが発生しました。"); } 
-            finally {
-                workspaceContainer.style.overflow = 'auto'; workspaceContainer.style.height = '100%';
-                setZoom(originalZoom); workspaceContainer.scrollTop = originalScrollTop; workspaceContainer.scrollLeft = originalScrollLeft;
+            } catch (error) { 
+                console.error("ダウンロードエラー:", error); 
+                alert("エラーが発生しました。"); 
+            } finally {
                 loadingOverlay.style.display = 'none'; 
             }
         });
