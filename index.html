@@ -1535,7 +1535,7 @@
             window.saveState();
         }
 
-        document.getElementById('projectInput').addEventListener('change', (e) => {
+document.getElementById('projectInput').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
             
@@ -1557,10 +1557,28 @@
                     const savedScale = projectData.bgScale || currentBgScale;
                     const scaleRatio = currentBgScale / savedScale;
 
+                    // ▼▼ 今回追加：PDFのページ間の隙間（固定20px）によるズレを補正する計算 ▼▼
+                    let originalPageHeight = 0;
+                    const GAP = 20; // .pdf-page の margin-bottom
+                    if (currentBackground.type === 'pdf') {
+                        originalPageHeight = window.pdfViewport1.height * savedScale;
+                    }
+
                     if (projectData.elements) {
                         projectData.elements = projectData.elements.map(el => {
                             if (el.left) el.left = (parseFloat(el.left) * scaleRatio) + 'px';
-                            if (el.top) el.top = (parseFloat(el.top) * scaleRatio) + 'px';
+                            if (el.top) {
+                                let oldTop = parseFloat(el.top);
+                                if (currentBackground.type === 'pdf' && originalPageHeight > 0) {
+                                    // 隙間の数を割り出して、純粋なY座標のみをスケールさせる
+                                    const k = Math.floor(oldTop / (originalPageHeight + GAP));
+                                    const oldTopWithoutGaps = oldTop - (k * GAP);
+                                    const newTopWithoutGaps = oldTopWithoutGaps * scaleRatio;
+                                    el.top = (newTopWithoutGaps + (k * GAP)) + 'px';
+                                } else {
+                                    el.top = (oldTop * scaleRatio) + 'px';
+                                }
+                            }
                             if (el.width) el.width = (parseFloat(el.width) * scaleRatio) + 'px';
                             if (el.height) el.height = (parseFloat(el.height) * scaleRatio) + 'px';
                             if (el.fontSize) el.fontSize = (parseFloat(el.fontSize) * scaleRatio) + 'px';
@@ -1584,6 +1602,7 @@
                             });
                         });
                     }
+                    // ▲▲ 追加ここまで ▲▲
                     
                     setTimeout(() => {
                         loadDataToWorkspace(projectData);
@@ -1599,7 +1618,7 @@
             };
             reader.readAsText(file);
         });
-
+        
         workspaceContainer.addEventListener('pointerdown', function(e) {
             if (currentTool === 'view') {
                 if (e.target.tagName.toLowerCase() === 'span' && e.target.closest('.textLayer')) return; 
