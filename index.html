@@ -10,7 +10,6 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
-    <!-- html2canvasは不要になったため削除しました -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0" />
@@ -569,7 +568,7 @@
         let tempMaskPath = null;
         let tempPathD = "";
         
-        let currentDrawingShape = null; // ★追加：ドラッグ中に表示する図形要素
+        let currentDrawingShape = null; 
 
         window.canvasDrawings = []; 
         let currentBackground = null;
@@ -1387,7 +1386,8 @@
                     pdfContainer.style.display = 'none';
                     const tempImg = new Image();
                     tempImg.onload = function() {
-                        const containerW = workspaceContainer.clientWidth; const finalScale = (containerW * 0.72) / tempImg.naturalWidth;
+                        const containerW = workspaceContainer.clientWidth; 
+                        const finalScale = (containerW * 0.72) / tempImg.naturalWidth;
                         uploadedImage.style.width = (tempImg.naturalWidth * finalScale) + 'px'; uploadedImage.style.height = (tempImg.naturalHeight * finalScale) + 'px';
                         uploadedImage.src = tempImg.src; uploadedImage.style.display = 'block';
                         initWorkspace(false);
@@ -1452,9 +1452,12 @@
                 const canvasCommandsArray = window.canvasDrawings.map(cmds => [...cmds]);
                 const canvasZIndexes = Array.from(workspace.querySelectorAll('.drawing-canvas')).map(c => c.style.zIndex);
                 
+                const currentBgScale = currentBackground.type === 'pdf' ? window.pdfBaseScale : (parseFloat(uploadedImage.style.width) / uploadedImage.naturalWidth);
+
                 const projectData = {
                     version: 1,
                     background: currentBackground,
+                    bgScale: currentBgScale,
                     elements: elements,
                     canvasCommandsArray: canvasCommandsArray,
                     canvasZIndexes: canvasZIndexes
@@ -1543,12 +1546,44 @@
                     loadingOverlay.style.display = 'flex';
                     loadingOverlay.querySelectorAll('div')[1].innerText = 'データを復元中...'; 
 
-                    const projectData = JSON.parse(event.target.result);
+                    let projectData = JSON.parse(event.target.result);
                     if (!projectData.background) throw new Error("無効なファイルです");
 
                     currentBackground = projectData.background;
                     
                     await loadBackground(currentBackground);
+                    
+                    const currentBgScale = currentBackground.type === 'pdf' ? window.pdfBaseScale : (parseFloat(uploadedImage.style.width) / uploadedImage.naturalWidth);
+                    const savedScale = projectData.bgScale || currentBgScale;
+                    const scaleRatio = currentBgScale / savedScale;
+
+                    if (projectData.elements) {
+                        projectData.elements = projectData.elements.map(el => {
+                            if (el.left) el.left = (parseFloat(el.left) * scaleRatio) + 'px';
+                            if (el.top) el.top = (parseFloat(el.top) * scaleRatio) + 'px';
+                            if (el.width) el.width = (parseFloat(el.width) * scaleRatio) + 'px';
+                            if (el.height) el.height = (parseFloat(el.height) * scaleRatio) + 'px';
+                            if (el.fontSize) el.fontSize = (parseFloat(el.fontSize) * scaleRatio) + 'px';
+                            if (el.strokeWidth) el.strokeWidth = parseFloat(el.strokeWidth) * scaleRatio;
+                            if (el.pathD) {
+                                el.pathD = el.pathD.replace(/([\d.-]+)/g, match => (parseFloat(match) * scaleRatio).toFixed(2));
+                            }
+                            return el;
+                        });
+                    }
+
+                    if (projectData.canvasCommandsArray) {
+                        projectData.canvasCommandsArray = projectData.canvasCommandsArray.map(cmds => {
+                            return cmds.map(cmd => {
+                                if (cmd.tool === 'legacy_base64') return cmd;
+                                return {
+                                    ...cmd,
+                                    width: cmd.width * scaleRatio,
+                                    points: cmd.points.map(p => ({ x: p.x * scaleRatio, y: p.y * scaleRatio }))
+                                };
+                            });
+                        });
+                    }
                     
                     setTimeout(() => {
                         loadDataToWorkspace(projectData);
