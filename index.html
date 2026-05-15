@@ -236,6 +236,7 @@
         #workspace-container.tool-view .canvas-element:not(.mask) { pointer-events: none !important; }
         #workspace-container.tool-mask .textLayer span, #workspace-container.tool-text .textLayer span, #workspace-container.tool-pen .textLayer span, #workspace-container.tool-eraser .textLayer span, #workspace-container.tool-highlight .textLayer span, #workspace-container.tool-shape .textLayer span { pointer-events: none !important; }
         #workspace-container.tool-pen, #workspace-container.tool-eraser, #workspace-container.tool-pen *, #workspace-container.tool-eraser * { cursor: none !important; }
+        #workspace-container.tool-pen .canvas-element, #workspace-container.tool-eraser .canvas-element { pointer-events: none !important; }
         #brush-cursor { position: fixed; border: 1px solid rgba(0, 0, 0, 0.6); background-color: rgba(255, 255, 255, 0.4); border-radius: 50%; pointer-events: none; display: none; z-index: 9999; transform: translate(-50%, -50%); }
 
         .combo-input, .number-input, .text-content { -webkit-user-select: text !important; user-select: text !important; -webkit-touch-callout: default !important; }
@@ -259,7 +260,7 @@
         .highlight-box.selected { outline: 2px dashed #3b82f6; cursor: move; }
         .text-wrapper { min-width: 100px; min-height: 30px; font-size: 20px; padding: 8px; cursor: move; -webkit-touch-callout: none; border-radius: 4px; }
         .text-wrapper.selected { outline: 2px solid #3b82f6; background-color: rgba(255, 255, 255, 0.6); }
-        .text-content { width: 100%; height: 100%; outline: none; word-wrap: break-word; overflow: hidden; pointer-events: none; font-weight: normal; }
+        .text-content { width: 100%; height: 100%; outline: none; word-wrap: break-word; overflow: hidden; pointer-events: none; font-weight: normal; text-orientation: upright; }
         .text-wrapper.selected .text-content { pointer-events: auto; cursor: text; }
         .canvas-element.selected { transition: none; }
         
@@ -580,6 +581,7 @@
 
         window.canvasDrawings = []; 
         let currentBackground = null;
+        let savedCanvasState = null;
         
         const toolColors = { text: '#ef4444', highlight: '#ffff00', pen: '#ef4444', shape: '#ef4444' };
         const toolWidths = { pen: 15, eraser: 30, mask: 15, shape: 3 };
@@ -610,7 +612,6 @@
         document.addEventListener('pointercancel', function(e) {
             if (action) {
                 if (action === 'draw_pen' && activeCtx) {
-                    activeCtx.closePath();
                     if (activeCanvas && activeCanvasIndex !== null) {
                         window.canvasDrawings[activeCanvasIndex].push({
                             tool: currentTool,
@@ -621,6 +622,7 @@
                         });
                     }
                     window.saveState();
+                    savedCanvasState = null;
                 } else if (action === 'draw_freehand_mask' && tempMaskSvg) {
                     tempMaskSvg.remove(); tempMaskSvg = null; tempMaskPath = null;
                 } else if (action === 'draw_shape' && currentDrawingShape) {
@@ -1748,12 +1750,21 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
                 const canvasRect = activeCanvas.getBoundingClientRect();
                 const localX = (e.clientX - canvasRect.left) / zoomLevel; const localY = (e.clientY - canvasRect.top) / zoomLevel;
 
-                penPoints = [{x: localX, y: localY}];
                 rawPenPoints = [{x: localX, y: localY}]; 
-                activeCtx.beginPath(); activeCtx.moveTo(localX, localY); activeCtx.lineWidth = parseFloat(penWidthInput.value); activeCtx.lineCap = 'round'; activeCtx.lineJoin = 'round';
-                if (currentTool === 'pen') { activeCtx.globalCompositeOperation = 'source-over'; activeCtx.strokeStyle = hexToRgba(toolColors['pen'], penOpacityInput.value); } 
-                else { activeCtx.globalCompositeOperation = 'destination-out'; activeCtx.strokeStyle = 'rgba(0,0,0,1)'; }
-                activeCtx.lineTo(localX + 0.01, localY + 0.01); activeCtx.stroke();
+
+                savedCanvasState = document.createElement('canvas');
+                savedCanvasState.width = activeCanvas.width;
+                savedCanvasState.height = activeCanvas.height;
+                savedCanvasState.getContext('2d').drawImage(activeCanvas, 0, 0);
+
+                const cmd = {
+                    tool: currentTool,
+                    points: rawPenPoints,
+                    width: parseFloat(penWidthInput.value),
+                    color: toolColors['pen'],
+                    opacity: penOpacityInput.value
+                };
+                executeCanvasCommand(activeCtx, cmd);
             }
         });
 
@@ -1805,14 +1816,23 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
                 const canvasRect = activeCanvas.getBoundingClientRect();
                 const localX = (e.clientX - canvasRect.left) / zoomLevel; const localY = (e.clientY - canvasRect.top) / zoomLevel;
 
-                penPoints.push({x: localX, y: localY});
                 rawPenPoints.push({x: localX, y: localY}); 
-                if (penPoints.length >= 3) {
-                    const last2 = penPoints[penPoints.length - 3]; const last1 = penPoints[penPoints.length - 2]; const curr = penPoints[penPoints.length - 1];
-                    const midX = (last1.x + curr.x) / 2; const midY = (last1.y + curr.y) / 2;
-                    activeCtx.beginPath(); activeCtx.moveTo(last2.x, last2.y); activeCtx.quadraticCurveTo(last1.x, last1.y, midX, midY); activeCtx.stroke();
-                    penPoints[penPoints.length - 2] = {x: midX, y: midY};
-                }
+                
+                activeCtx.save();
+                activeCtx.setTransform(1, 0, 0, 1, 0, 0);
+                activeCtx.globalCompositeOperation = 'source-over';
+                activeCtx.clearRect(0, 0, activeCanvas.width, activeCanvas.height);
+                activeCtx.drawImage(savedCanvasState, 0, 0);
+                activeCtx.restore();
+
+                const cmd = {
+                    tool: currentTool,
+                    points: rawPenPoints,
+                    width: parseFloat(penWidthInput.value),
+                    color: toolColors['pen'],
+                    opacity: penOpacityInput.value
+                };
+                executeCanvasCommand(activeCtx, cmd);
             } else if (action === 'move' && selectedElement) {
                 selectedElement.style.left = (startRect.left + (currentX - startX)) + 'px'; selectedElement.style.top = (startRect.top + (currentY - startY)) + 'px';
             } else if (action === 'resize' && selectedElement) {
@@ -1892,7 +1912,6 @@ if (action === 'draw') {
                 }
                 tempMaskSvg = null; tempMaskPath = null;
             } else if (action === 'draw_pen') { 
-                if (activeCtx) activeCtx.closePath(); 
                 if (activeCanvas && activeCanvasIndex !== null) {
                     window.canvasDrawings[activeCanvasIndex].push({
                         tool: currentTool,
@@ -1903,6 +1922,7 @@ if (action === 'draw') {
                     });
                 }
                 activeCanvas = null; activeCtx = null; activeCanvasIndex = null; stateChanged = true; 
+                savedCanvasState = null;
             } 
             else if (action === 'move' || action === 'resize') { stateChanged = true; }
             
