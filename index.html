@@ -259,7 +259,7 @@
         .highlight-box.selected { outline: 2px dashed #3b82f6; cursor: move; }
         .text-wrapper { min-width: 100px; min-height: 30px; font-size: 20px; padding: 8px; cursor: move; -webkit-touch-callout: none; border-radius: 4px; }
         .text-wrapper.selected { outline: 2px solid #3b82f6; background-color: rgba(255, 255, 255, 0.6); }
-        .text-content { width: 100%; height: 100%; outline: none; word-wrap: break-word; overflow: hidden; pointer-events: none; font-weight: 600; }
+        .text-content { width: 100%; height: 100%; outline: none; word-wrap: break-word; overflow: hidden; pointer-events: none; font-weight: normal; }
         .text-wrapper.selected .text-content { pointer-events: auto; cursor: text; }
         .canvas-element.selected { transition: none; }
         
@@ -397,7 +397,7 @@
                             <div class="swatch" data-color="#ef4444" style="background: #ef4444;" title="赤"></div>
                             <div class="swatch" data-color="#3b82f6" style="background: #3b82f6;" title="青"></div>
                             <div class="swatch" data-color="#10b981" style="background: #10b981;" title="緑"></div>
-                            <div class="swatch" data-color="#f59e0b" style="background: #f59e0b;" title="黄"></div>
+                            <div class="swatch" data-color="#ffff00" style="background: #ffff00;" title="黄"></div>
                             <div class="swatch" data-color="#f97316" style="background: #f97316;" title="オレンジ"></div>
                             <div class="swatch" data-color="#1f2937" style="background: #1f2937;" title="黒"></div>
                             <div class="swatch" data-color="#ffffff" style="background: #ffffff;" title="白"></div>
@@ -417,6 +417,12 @@
                         <button class="btn btn-icon" id="btn-align-left" title="左揃え"><span class="material-symbols-outlined">format_align_left</span></button>
                         <button class="btn btn-icon" id="btn-align-center" title="中央揃え"><span class="material-symbols-outlined">format_align_center</span></button>
                         <button class="btn btn-icon" id="btn-align-right" title="右揃え"><span class="material-symbols-outlined">format_align_right</span></button>
+                    </span>
+
+                    <span class="prop-group" id="prop-text-direction">
+                        <button class="btn btn-icon" id="btn-dir-horiz" title="横書き"><span class="material-symbols-outlined">notes</span></button>
+                        <button class="btn btn-icon" id="btn-dir-vert-rl" title="縦書き (右から左)"><span class="material-symbols-outlined" style="transform: rotate(90deg);">notes</span></button>
+                        <button class="btn btn-icon" id="btn-dir-vert-lr" title="縦書き (左から右)"><span class="material-symbols-outlined" style="transform: rotate(-90deg);">notes</span></button>
                     </span>
 
                     <span class="prop-group" id="prop-text-size">
@@ -494,6 +500,8 @@
     <script>
         const btnSaveMenu = document.getElementById('btn-save-menu');
         const saveDropdownMenu = document.getElementById('save-dropdown-menu');
+        
+        let currentTextDirection = 'horizontal-tb'; 
         
         btnSaveMenu.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -573,7 +581,7 @@
         window.canvasDrawings = []; 
         let currentBackground = null;
         
-        const toolColors = { text: '#ef4444', highlight: '#f59e0b', pen: '#ef4444', shape: '#ef4444' };
+        const toolColors = { text: '#ef4444', highlight: '#ffff00', pen: '#ef4444', shape: '#ef4444' };
         const toolWidths = { pen: 15, eraser: 30, mask: 15, shape: 3 };
 
         document.getElementById('btn-focus-mode').addEventListener('click', function() {
@@ -737,6 +745,18 @@
         document.getElementById('btn-align-center').addEventListener('pointerdown', (e) => { e.preventDefault(); setTextAlign('center'); });
         document.getElementById('btn-align-right').addEventListener('pointerdown', (e) => { e.preventDefault(); setTextAlign('right'); });
 
+        function setTextDirection(dir) {
+            currentTextDirection = dir;
+            if (currentTool === 'text' && selectedElement && selectedElement.classList.contains('text-wrapper')) {
+                selectedElement.style.writingMode = dir;
+                selectedElement.querySelector('.text-content').style.writingMode = dir;
+                window.saveState();
+            }
+        }
+        document.getElementById('btn-dir-horiz').addEventListener('pointerdown', (e) => { e.preventDefault(); setTextDirection('horizontal-tb'); });
+        document.getElementById('btn-dir-vert-rl').addEventListener('pointerdown', (e) => { e.preventDefault(); setTextDirection('vertical-rl'); });
+        document.getElementById('btn-dir-vert-lr').addEventListener('pointerdown', (e) => { e.preventDefault(); setTextDirection('vertical-lr'); });
+
         function updateToolbar() {
             const maskType = document.querySelector('input[name="maskType"]:checked') ? document.querySelector('input[name="maskType"]:checked').value : 'rect';
             
@@ -745,6 +765,7 @@
             document.getElementById('prop-color').style.display = ['text', 'highlight', 'pen', 'shape'].includes(currentTool) ? 'flex' : 'none';
             document.getElementById('prop-text-style').style.display = (currentTool === 'text') ? 'flex' : 'none'; 
             document.getElementById('prop-text-align').style.display = (currentTool === 'text') ? 'flex' : 'none';
+            document.getElementById('prop-text-direction').style.display = (currentTool === 'text') ? 'flex' : 'none';
             document.getElementById('prop-text-size').style.display = (currentTool === 'text') ? 'flex' : 'none';
             
             document.getElementById('prop-pen-width').style.display = ['pen', 'eraser', 'shape'].includes(currentTool) || (currentTool === 'mask' && maskType === 'free') ? 'flex' : 'none';
@@ -901,6 +922,7 @@
                     backgroundColor: isHighlight ? el.style.backgroundColor : null,
                     zIndex: el.style.zIndex,
                     textAlign: isText ? (el.style.textAlign || el.querySelector('.text-content').style.textAlign || 'left') : null,
+                    writingMode: isText ? (el.style.writingMode || el.querySelector('.text-content').style.writingMode || 'horizontal-tb') : null,
                     pathD: isFreehandMask ? el.querySelector('path').getAttribute('d') : null,
                     strokeWidth: isFreehandMask ? el.querySelector('path').getAttribute('stroke-width') : (isShape ? el.querySelector('svg > *')?.getAttribute('stroke-width') : null),
                     shapeType: isShape ? el.dataset.shapeType : null,
@@ -932,7 +954,7 @@
                 else if (data.type === 'shape') el = window.createShapeElement(data.left, data.top, data.width, data.height, data.shapeType, data.color, data.strokeWidth, data.lineDir);
                 else if (data.type === 'freehand-mask') el = window.createFreehandMaskElement(data.left, data.top, data.width, data.height, data.pathD, data.strokeWidth);
                 else if (data.type === 'highlight') el = window.createHighlightElement(data.left, data.top, data.width, data.height, data.backgroundColor);
-                else el = window.createTextElement(data.left, data.top, data.width, data.height, data.content, data.fontSize, data.color, data.textAlign); 
+                else el = window.createTextElement(data.left, data.top, data.width, data.height, data.content, data.fontSize, data.color, data.textAlign, data.writingMode); 
                 
                 if (data.zIndex) {
                     el.style.zIndex = data.zIndex;
@@ -1058,15 +1080,17 @@
             workspace.appendChild(box); return box;
         }
 
-        window.createTextElement = function(left, top, width, height, content = '', fontSize = '20px', color = '#ef4444', textAlign = 'left') {
+        window.createTextElement = function(left, top, width, height, content = '', fontSize = '20px', color = '#ef4444', textAlign = 'left', writingMode = 'horizontal-tb') {
             const wrapper = document.createElement('div'); wrapper.className = 'canvas-element text-wrapper';
             wrapper.style.left = left; wrapper.style.top = top;
             if (width) wrapper.style.width = width; if (height) wrapper.style.height = height;
             wrapper.style.fontSize = fontSize; wrapper.style.color = color; 
             wrapper.style.textAlign = textAlign;
+            wrapper.style.writingMode = writingMode;
             
             const textContent = document.createElement('div'); textContent.className = 'text-content'; textContent.contentEditable = "true"; textContent.innerHTML = content;
             textContent.style.textAlign = textAlign;
+            textContent.style.writingMode = writingMode;
             
             wrapper.appendChild(textContent); addResizeHandles(wrapper); 
             window.bringToFront(wrapper);
@@ -1442,6 +1466,7 @@
                         backgroundColor: isHighlight ? el.style.backgroundColor : null,
                         zIndex: el.style.zIndex,
                         textAlign: isText ? (el.style.textAlign || el.querySelector('.text-content').style.textAlign || 'left') : null,
+                        writingMode: isText ? (el.style.writingMode || el.querySelector('.text-content').style.writingMode || 'horizontal-tb') : null,
                         pathD: isFreehandMask ? el.querySelector('path').getAttribute('d') : null,
                         strokeWidth: isFreehandMask ? el.querySelector('path').getAttribute('stroke-width') : (isShape ? el.querySelector('svg > *')?.getAttribute('stroke-width') : null),
                         shapeType: isShape ? el.dataset.shapeType : null,
@@ -1491,7 +1516,7 @@
                     else if (data.type === 'shape') el = window.createShapeElement(data.left, data.top, data.width, data.height, data.shapeType, data.color, data.strokeWidth, data.lineDir);
                     else if (data.type === 'freehand-mask') el = window.createFreehandMaskElement(data.left, data.top, data.width, data.height, data.pathD, data.strokeWidth);
                     else if (data.type === 'highlight') el = window.createHighlightElement(data.left, data.top, data.width, data.height, data.backgroundColor);
-                    else el = window.createTextElement(data.left, data.top, data.width, data.height, data.content, data.fontSize, data.color, data.textAlign); 
+                    else el = window.createTextElement(data.left, data.top, data.width, data.height, data.content, data.fontSize, data.color, data.textAlign, data.writingMode); 
                     
                     if (data.zIndex) {
                         el.style.zIndex = data.zIndex;
@@ -1618,7 +1643,7 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
             };
             reader.readAsText(file);
         });
-        
+
         workspaceContainer.addEventListener('pointerdown', function(e) {
             if (currentTool === 'view') {
                 if (e.target.tagName.toLowerCase() === 'span' && e.target.closest('.textLayer')) return; 
@@ -1709,7 +1734,7 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
                 drawingBox.style.width = '0px'; drawingBox.style.height = '0px'; drawingBox.style.display = 'block';
             } else if (currentTool === 'text') {
                 const currentFontSize = textSizeInput.value + 'px'; const currentColor = toolColors['text']; 
-                const newText = window.createTextElement((mouseX - 8) + 'px', (mouseY - 8) + 'px', '150px', '50px', '', currentFontSize, currentColor, 'left');
+                const newText = window.createTextElement((mouseX - 8) + 'px', (mouseY - 8) + 'px', '150px', '50px', '', currentFontSize, currentColor, 'left', currentTextDirection);
                 selectedElement = newText; newText.classList.add('selected'); setTimeout(() => { newText.querySelector('.text-content').focus(); }, 10);
             } else if (currentTool === 'pen' || currentTool === 'eraser') {
                 action = 'draw_pen'; 
@@ -1804,15 +1829,26 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
             let stateChanged = false;
             if (action === 'pan') { action = null; return; }
             
-            if (action === 'draw') {
+if (action === 'draw') {
                 drawingBox.style.display = 'none';
-                if (parseFloat(drawingBox.style.width) >= 10 && parseFloat(drawingBox.style.height) >= 10) {
+                let w = parseFloat(drawingBox.style.width);
+                let h = parseFloat(drawingBox.style.height);
+                
+                // 誤クリック（極端に小さい点）でなければ作成する
+                if (Math.hypot(w, h) >= 5) {
+                    let left = parseFloat(drawingBox.style.left);
+                    let top = parseFloat(drawingBox.style.top);
+                    
+                    // 細すぎると後からマウスで選択・移動できなくなるため、最低4pxの太さを確保
+                    if (w < 4) { w = 4; left -= 2; }
+                    if (h < 4) { h = 4; top -= 2; }
+
                     if (currentTool === 'highlight') {
                         const bgColor = hexToRgba(toolColors['highlight'], penOpacityInput.value);
-                        const hl = window.createHighlightElement(drawingBox.style.left, drawingBox.style.top, drawingBox.style.width, drawingBox.style.height, bgColor);
+                        const hl = window.createHighlightElement(left + 'px', top + 'px', w + 'px', h + 'px', bgColor);
                         window.deselectCurrent(); selectedElement = hl; selectedElement.classList.add('selected');
                     } else {
-                        const mask = window.createMaskElement(drawingBox.style.left, drawingBox.style.top, drawingBox.style.width, drawingBox.style.height);
+                        const mask = window.createMaskElement(left + 'px', top + 'px', w + 'px', h + 'px');
                         window.deselectCurrent(); selectedElement = mask; selectedElement.classList.add('selected');
                     }
                     stateChanged = true;
@@ -1932,25 +1968,44 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
 
                 ctx.translate(8, 8); 
                 ctx.fillStyle = data.color;
-                ctx.font = `600 ${data.fontSize || '20px'} sans-serif`;
-                ctx.textBaseline = 'top';
-                
-                let x = 0;
-                if (data.textAlign === 'center') {
-                    ctx.textAlign = 'center';
-                    x = (width - 16) / 2;
-                } else if (data.textAlign === 'right') {
-                    ctx.textAlign = 'right';
-                    x = width - 16;
-                } else {
-                    ctx.textAlign = 'left';
-                }
+                ctx.font = `${data.fontSize || '20px'} sans-serif`;
 
-                const lines = text.split('\n');
-                const lineHeight = parseFloat(data.fontSize || 20) * 1.2;
-                lines.forEach((line, i) => {
-                    ctx.fillText(line, x, i * lineHeight);
-                });
+                if (data.writingMode === 'vertical-rl' || data.writingMode === 'vertical-lr') {
+                    const isRL = data.writingMode === 'vertical-rl';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'top';
+                    const lines = text.split('\n');
+                    const fontSize = parseFloat(data.fontSize || 20);
+                    const lineHeight = fontSize * 1.2;
+
+                    lines.forEach((line, i) => {
+                        let x = isRL ? (width - 16 - (i * lineHeight) - fontSize / 2) : ((i * lineHeight) + fontSize / 2);
+                        let y = 0;
+                        for (let j = 0; j < line.length; j++) {
+                            const char = line[j];
+                            ctx.fillText(char, x, y);
+                            y += fontSize;
+                        }
+                    });
+                } else {
+                    ctx.textBaseline = 'top';
+                    let x = 0;
+                    if (data.textAlign === 'center') {
+                        ctx.textAlign = 'center';
+                        x = (width - 16) / 2;
+                    } else if (data.textAlign === 'right') {
+                        ctx.textAlign = 'right';
+                        x = width - 16;
+                    } else {
+                        ctx.textAlign = 'left';
+                    }
+
+                    const lines = text.split('\n');
+                    const lineHeight = parseFloat(data.fontSize || 20) * 1.2;
+                    lines.forEach((line, i) => {
+                        ctx.fillText(line, x, i * lineHeight);
+                    });
+                }
             }
 
             ctx.restore();
