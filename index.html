@@ -280,16 +280,23 @@
 
         .highlight-box { cursor: pointer; mix-blend-mode: multiply; -webkit-touch-callout: none; border-radius: 2px; } 
         .highlight-box.selected { outline: 2px dashed #3b82f6; cursor: move; }
-        .text-wrapper { min-width: 100px; min-height: 30px; font-size: 20px; padding: 8px; cursor: move; -webkit-touch-callout: none; border-radius: 4px; }
+        
+        .text-wrapper { min-width: 30px; min-height: 30px; font-size: 20px; padding: 8px; cursor: move; -webkit-touch-callout: none; border-radius: 4px; }
         .text-wrapper.selected { outline: 2px solid #3b82f6; background-color: rgba(255, 255, 255, 0.6); }
-        .text-content { width: 100%; height: 100%; outline: none; word-wrap: break-word; overflow: hidden; pointer-events: none; font-weight: normal; text-orientation: upright; }
+        .text-content { width: 100%; height: 100%; outline: none; white-space: pre-wrap; word-wrap: break-word; overflow: visible; pointer-events: none; font-weight: normal; text-orientation: upright; }
         .text-wrapper.selected .text-content { pointer-events: auto; cursor: text; }
         .canvas-element.selected { transition: none; }
+        #workspace-container.tool-mask .text-wrapper { pointer-events: none !important; }
         
         .shape-element { background-color: transparent; border-radius: 2px; }
         .shape-element svg { pointer-events: none; display: block; overflow: visible; }
         .shape-element svg * { pointer-events: visibleStroke; cursor: pointer; }
         .shape-element.selected { outline: 2px dashed #3b82f6; cursor: move; }
+
+        /* --- 画像エレメント --- */
+        .image-element { background-color: transparent; border-radius: 4px; overflow: hidden; }
+        .image-element img { display: block; width: 100%; height: 100%; pointer-events: none; -webkit-user-drag: none; }
+        .image-element.selected { outline: 2px solid #3b82f6; cursor: move; }
 
         .resize-handle { position: absolute; width: 10px; height: 10px; background-color: white; border: 2px solid #3b82f6; display: none; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
         .canvas-element.selected .resize-handle { display: block; z-index: 50; }
@@ -497,6 +504,13 @@
                     <input type="radio" id="tool-eraser" name="currentTool" value="eraser">
                     <label for="tool-eraser" title="消しゴム"><span class="material-symbols-outlined">ink_eraser</span></label>
                     
+                    <div class="tool-divider"></div>
+
+                    <!-- 追加: 画像追加ボタンとファイル入力 -->
+                    <button class="btn btn-icon" id="btn-add-image" title="画像を追加" style="border:none; background:transparent;">
+                        <span class="material-symbols-outlined">add_photo_alternate</span>
+                    </button>
+                    <input type="file" id="overlayImageInput" accept="image/png, image/jpeg, image/webp" style="display: none;">
                     <div class="tool-divider"></div>
 
                     <button class="btn btn-icon btn-danger" id="btn-delete" title="選択したものを消す" style="border:none; background:transparent;">
@@ -929,16 +943,16 @@
             }
             ctx.stroke();
         }
-
         window.saveState = function() {
             const elements = Array.from(workspace.querySelectorAll('.canvas-element')).map(el => {
                 const isText = el.classList.contains('text-wrapper'); 
                 const isHighlight = el.classList.contains('highlight-box');
                 const isFreehandMask = el.classList.contains('mask-freehand-wrapper');
                 const isShape = el.classList.contains('shape-element');
+                const isImage = el.classList.contains('image-element');
                 
                 return {
-                    type: isText ? 'text' : (isHighlight ? 'highlight' : (isFreehandMask ? 'freehand-mask' : (isShape ? 'shape' : 'mask'))),
+                    type: isText ? 'text' : (isHighlight ? 'highlight' : (isFreehandMask ? 'freehand-mask' : (isShape ? 'shape' : (isImage ? 'image' : 'mask')))),
                     left: el.style.left, top: el.style.top, width: el.style.width, height: el.style.height,
                     content: isText ? el.querySelector('.text-content').innerHTML : null, 
                     fontSize: isText ? el.style.fontSize : null, 
@@ -950,7 +964,8 @@
                     pathD: isFreehandMask ? el.querySelector('path').getAttribute('d') : null,
                     strokeWidth: isFreehandMask ? el.querySelector('path').getAttribute('stroke-width') : (isShape ? el.querySelector('svg > *')?.getAttribute('stroke-width') : null),
                     shapeType: isShape ? el.dataset.shapeType : null,
-                    lineDir: isShape ? el.dataset.lineDir : null
+                    lineDir: isShape ? el.dataset.lineDir : null,
+                    dataUrl: isImage ? el.querySelector('img').src : null
                 };
             });
             
@@ -978,6 +993,7 @@
                 else if (data.type === 'shape') el = window.createShapeElement(data.left, data.top, data.width, data.height, data.shapeType, data.color, data.strokeWidth, data.lineDir);
                 else if (data.type === 'freehand-mask') el = window.createFreehandMaskElement(data.left, data.top, data.width, data.height, data.pathD, data.strokeWidth);
                 else if (data.type === 'highlight') el = window.createHighlightElement(data.left, data.top, data.width, data.height, data.backgroundColor);
+                else if (data.type === 'image') el = window.createImageElement(data.left, data.top, data.width, data.height, data.dataUrl);
                 else el = window.createTextElement(data.left, data.top, data.width, data.height, data.content, data.fontSize, data.color, data.textAlign, data.writingMode); 
                 
                 if (data.zIndex) {
@@ -989,7 +1005,7 @@
             window.canvasDrawings = state.canvasCommandsArray.map(cmds => [...cmds]);
             const canvases = Array.from(workspace.querySelectorAll('.drawing-canvas'));
             
-            canvases.forEach((c, i) => {
+            canuses.forEach((c, i) => {
                 if (state.canvasZIndexes && state.canvasZIndexes[i]) {
                     c.style.zIndex = state.canvasZIndexes[i];
                 } else {
@@ -1480,9 +1496,10 @@
                     const isHighlight = el.classList.contains('highlight-box');
                     const isFreehandMask = el.classList.contains('mask-freehand-wrapper');
                     const isShape = el.classList.contains('shape-element');
+                    const isImage = el.classList.contains('image-element');
                     
                     return {
-                        type: isText ? 'text' : (isHighlight ? 'highlight' : (isFreehandMask ? 'freehand-mask' : (isShape ? 'shape' : 'mask'))),
+                        type: isText ? 'text' : (isHighlight ? 'highlight' : (isFreehandMask ? 'freehand-mask' : (isShape ? 'shape' : (isImage ? 'image' : 'mask')))),
                         left: el.style.left, top: el.style.top, width: el.style.width, height: el.style.height,
                         content: isText ? el.querySelector('.text-content').innerHTML : null,
                         fontSize: isText ? el.style.fontSize : null, 
@@ -1494,7 +1511,8 @@
                         pathD: isFreehandMask ? el.querySelector('path').getAttribute('d') : null,
                         strokeWidth: isFreehandMask ? el.querySelector('path').getAttribute('stroke-width') : (isShape ? el.querySelector('svg > *')?.getAttribute('stroke-width') : null),
                         shapeType: isShape ? el.dataset.shapeType : null,
-                        lineDir: isShape ? el.dataset.lineDir : null
+                        lineDir: isShape ? el.dataset.lineDir : null,
+                        dataUrl: isImage ? el.querySelector('img').src : null
                     };
                 });
                 
@@ -1540,6 +1558,7 @@
                     else if (data.type === 'shape') el = window.createShapeElement(data.left, data.top, data.width, data.height, data.shapeType, data.color, data.strokeWidth, data.lineDir);
                     else if (data.type === 'freehand-mask') el = window.createFreehandMaskElement(data.left, data.top, data.width, data.height, data.pathD, data.strokeWidth);
                     else if (data.type === 'highlight') el = window.createHighlightElement(data.left, data.top, data.width, data.height, data.backgroundColor);
+                    else if (data.type === 'image') el = window.createImageElement(data.left, data.top, data.width, data.height, data.dataUrl);
                     else el = window.createTextElement(data.left, data.top, data.width, data.height, data.content, data.fontSize, data.color, data.textAlign, data.writingMode); 
                     
                     if (data.zIndex) {
@@ -1606,9 +1625,8 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
                     const savedScale = projectData.bgScale || currentBgScale;
                     const scaleRatio = currentBgScale / savedScale;
 
-                    // ▼▼ 今回追加：PDFのページ間の隙間（固定20px）によるズレを補正する計算 ▼▼
                     let originalPageHeight = 0;
-                    const GAP = 20; // .pdf-page の margin-bottom
+                    const GAP = 20;
                     if (currentBackground.type === 'pdf') {
                         originalPageHeight = window.pdfViewport1.height * savedScale;
                     }
@@ -1619,7 +1637,6 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
                             if (el.top) {
                                 let oldTop = parseFloat(el.top);
                                 if (currentBackground.type === 'pdf' && originalPageHeight > 0) {
-                                    // 隙間の数を割り出して、純粋なY座標のみをスケールさせる
                                     const k = Math.floor(oldTop / (originalPageHeight + GAP));
                                     const oldTopWithoutGaps = oldTop - (k * GAP);
                                     const newTopWithoutGaps = oldTopWithoutGaps * scaleRatio;
@@ -1651,7 +1668,6 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
                             });
                         });
                     }
-                    // ▲▲ 追加ここまで ▲▲
                     
                     setTimeout(() => {
                         loadDataToWorkspace(projectData);
@@ -1698,7 +1714,7 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
                 return; 
             }
 
-            const draggableTarget = e.target.closest('.mask, .text-wrapper, .highlight-box, .shape-element');
+            const draggableTarget = e.target.closest('.mask, .text-wrapper, .highlight-box, .shape-element, .image-element');
             if (draggableTarget && !['pen', 'eraser'].includes(currentTool)) {
                 action = 'move'; 
                 window.deselectCurrent(); 
@@ -1758,7 +1774,7 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
                 drawingBox.style.width = '0px'; drawingBox.style.height = '0px'; drawingBox.style.display = 'block';
             } else if (currentTool === 'text') {
                 const currentFontSize = textSizeInput.value + 'px'; const currentColor = toolColors['text']; 
-                const newText = window.createTextElement((mouseX - 8) + 'px', (mouseY - 8) + 'px', '150px', '50px', '', currentFontSize, currentColor, 'left', currentTextDirection);
+                const newText = window.createTextElement((mouseX - 8) + 'px', (mouseY - 8) + 'px', 'max-content', 'max-content', '', currentFontSize, currentColor, 'left', currentTextDirection);
                 selectedElement = newText; newText.classList.add('selected'); setTimeout(() => { newText.querySelector('.text-content').focus(); }, 10);
             } else if (currentTool === 'pen' || currentTool === 'eraser') {
                 action = 'draw_pen'; 
@@ -2001,6 +2017,10 @@ if (action === 'draw') {
                     }
                     ctx.stroke();
                 }
+            } else if (data.type === 'image') {
+                if (data._cachedImg) {
+                    ctx.drawImage(data._cachedImg, 0, 0, width, height);
+                }
             } else if (data.type === 'text') {
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = data.content;
@@ -2066,6 +2086,16 @@ if (action === 'draw') {
 
             try {
                 const state = window.historyArray[window.historyIndex] || { elements: [], canvasCommandsArray: [] };
+                
+                // 追加: 画像をエクスポート前に読み込む
+                await Promise.all(state.elements.filter(el => el.type === 'image').map(el => {
+                    return new Promise(res => {
+                        const img = new Image();
+                        img.onload = () => { el._cachedImg = img; res(); };
+                        img.onerror = res;
+                        img.src = el.dataUrl;
+                    });
+                }));
                 
                 if (uploadedImage.style.display === 'block') {
                     const cssWidth = parseFloat(uploadedImage.style.width);
@@ -2140,6 +2170,81 @@ if (action === 'draw') {
                 alert("エラーが発生しました。"); 
             } finally {
                 loadingOverlay.style.display = 'none'; 
+            }
+        });
+
+        // --- 画像貼り付け・生成機能 ---
+        window.createImageElement = function(left, top, width, height, dataUrl) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'canvas-element image-element';
+            wrapper.style.left = left; wrapper.style.top = top;
+            wrapper.style.width = width; wrapper.style.height = height;
+
+            const img = document.createElement('img');
+            img.src = dataUrl;
+            img.draggable = false;
+            wrapper.appendChild(img);
+
+            addResizeHandles(wrapper);
+            window.bringToFront(wrapper);
+            workspace.appendChild(wrapper);
+            return wrapper;
+        };
+
+        function insertImageToWorkspace(dataUrl) {
+            const img = new Image();
+            img.onload = () => {
+                let w = img.width; let h = img.height;
+                const maxDim = 300; // 配置時の初期最大サイズを300pxに制限
+                if (w > maxDim || h > maxDim) {
+                    if (w > h) { h = h * (maxDim / w); w = maxDim; }
+                    else { w = w * (maxDim / h); h = maxDim; }
+                }
+                const containerW = workspaceContainer.clientWidth;
+                const containerH = workspaceContainer.clientHeight;
+                const oldMarginLeft = parseFloat(workspaceWrapper.style.marginLeft) || 0;
+                const oldMarginTop = parseFloat(workspaceWrapper.style.marginTop) || 0;
+                const centerX = (workspaceContainer.scrollLeft + containerW / 2 - oldMarginLeft) / zoomLevel;
+                const centerY = (workspaceContainer.scrollTop + containerH / 2 - oldMarginTop) / zoomLevel;
+
+                const left = (centerX - w / 2) + 'px';
+                const top = (centerY - h / 2) + 'px';
+
+                const newImgEl = window.createImageElement(left, top, w + 'px', h + 'px', dataUrl);
+                window.deselectCurrent();
+                selectedElement = newImgEl;
+                newImgEl.classList.add('selected');
+                window.saveState();
+            };
+            img.src = dataUrl;
+        }
+
+        const overlayImageInput = document.getElementById('overlayImageInput');
+        if (document.getElementById('btn-add-image')) {
+            document.getElementById('btn-add-image').addEventListener('click', () => { overlayImageInput.click(); });
+        }
+        if (overlayImageInput) {
+            overlayImageInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => { insertImageToWorkspace(event.target.result); e.target.value = ''; };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // クリップボードからのペースト(Ctrl+V)に対応
+        document.addEventListener('paste', (e) => {
+            if (e.target.closest('.text-content') || e.target.tagName === 'INPUT') return;
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (let index in items) {
+                const item = items[index];
+                if (item.kind === 'file' && item.type.startsWith('image/')) {
+                    const blob = item.getAsFile();
+                    const reader = new FileReader();
+                    reader.onload = (event) => { insertImageToWorkspace(event.target.result); };
+                    reader.readAsDataURL(blob);
+                }
             }
         });
 
