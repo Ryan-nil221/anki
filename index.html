@@ -257,7 +257,7 @@
         #workspace-container.tool-pan { cursor: grab; }
         #workspace-container.tool-pan:active { cursor: grabbing; }
         #workspace-container.tool-pan .canvas-element { pointer-events: none !important; }
-        /* ※ツール移動時の .textLayer span への制限を削除し、文字選択を可能にしました */
+        #workspace-container.tool-pan .textLayer span { pointer-events: none !important; }
 
         #workspace-container.tool-select .textLayer span { pointer-events: none !important; user-select: none !important; -webkit-user-select: none !important; }
         
@@ -315,7 +315,7 @@
         .shape-element.selected { outline: 2px dashed #3b82f6; cursor: move; }
 
         /* --- 画像エレメント --- */
-        .image-element { background-color: transparent; border-radius: 4px; }
+        .image-element { background-color: transparent; border-radius: 4px; } /* overflow: hiddenを削除 */
         .image-element img { display: block; width: 100%; height: 100%; pointer-events: none; -webkit-user-drag: none; border-radius: 4px; overflow: hidden; }
         .image-element.selected { outline: 2px solid #3b82f6; cursor: move; }
 
@@ -451,6 +451,7 @@
                         </div>
                     </span>
 
+                    <!-- 追加: ペンツールのモード切り替え (ペン / 消しゴム) -->
                     <span class="prop-group" id="prop-pen-mode">
                         <div class="mini-switch">
                             <input type="radio" id="pen-mode-draw" name="penMode" value="pen" checked>
@@ -522,11 +523,12 @@
                 </div>
 
                 <div class="tool-switch">
+                    <!-- 変更: 画面移動とオブジェクト選択の分離 -->
                     <input type="radio" id="tool-pan" name="currentTool" value="pan">
                     <label for="tool-pan" title="画面移動"><span class="material-symbols-outlined">pan_tool</span></label>
 
                     <input type="radio" id="tool-select" name="currentTool" value="select">
-                    <label for="tool-select" title="選択"><span class="material-symbols-outlined">highlight_alt</span></label>
+                    <label for="tool-select" title="オブジェクト選択"><span class="material-symbols-outlined">ads_click</span></label>
                     
                     <input type="radio" id="tool-mask" name="currentTool" value="mask" checked>
                     <label for="tool-mask" title="黒塗りマスク"><span class="material-symbols-outlined icon-filled">square</span></label>
@@ -540,6 +542,7 @@
                     <input type="radio" id="tool-shape" name="currentTool" value="shape">
                     <label for="tool-shape" title="図形・直線"><span class="material-symbols-outlined">category</span></label>
 
+                    <!-- ペンツール（消しゴムもここに含まれる） -->
                     <input type="radio" id="tool-pen" name="currentTool" value="pen">
                     <label for="tool-pen" title="ペン / 消しゴム"><span class="material-symbols-outlined">brush</span></label>
                     
@@ -566,7 +569,7 @@
                         <img id="uploaded-image" src="" style="display: none;" draggable="false">
                         <div id="pdf-container"></div>
                         <div id="drawing-box"></div>
-                        <div id="selection-box"></div> 
+                        <div id="selection-box"></div> <!-- 追加: 範囲選択ボックス -->
                     </div>
                 </div>
             </div>
@@ -624,7 +627,7 @@
         const toolRadios = document.querySelectorAll('input[name="currentTool"]');
         const maskTypeRadios = document.querySelectorAll('input[name="maskType"]');
         const shapeTypeRadios = document.querySelectorAll('input[name="shapeType"]');
-        const penModeRadios = document.querySelectorAll('input[name="penMode"]'); 
+        const penModeRadios = document.querySelectorAll('input[name="penMode"]'); // 追加: ペンモード
 
         const textSizeInput = document.getElementById('text-size-input'); 
         const penWidthSlider = document.getElementById('pen-width-slider'); 
@@ -638,8 +641,8 @@
 
         let currentTool = 'mask'; 
         let action = null; 
-        let selectedElements = []; // 複数選択に対応
-        let startRects = []; // 複数選択移動用
+        let selectedElements = []; // 変更: 複数選択に対応
+        let startRects = []; // 変更: 複数選択移動用
         let currentHandle = null; 
         let startX = 0, startY = 0;
         let startRect = {}; 
@@ -883,6 +886,7 @@
             document.getElementById('prop-opacity').style.display = ['highlight', 'pen'].includes(currentTool) ? 'flex' : 'none';
             
             if (['pen', 'mask', 'shape'].includes(currentTool)) {
+                // ペンの場合は、ペンモード（消しゴムかペンか）に応じて太さを復元
                 if (currentTool === 'pen') {
                     const mode = document.querySelector('input[name="penMode"]:checked').value;
                     penWidthSlider.value = toolWidths[mode];
@@ -1809,7 +1813,7 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
         workspaceContainer.addEventListener('pointerdown', function(e) {
             if (currentTool === 'pan') {
                 action = 'pan'; startX = e.clientX; startY = e.clientY; startRect = { scrollLeft: workspaceContainer.scrollLeft, scrollTop: workspaceContainer.scrollTop }; 
-                return; // CSS側で選択可能にしているためpreventDefaultは呼ばない
+                e.preventDefault(); return;
             }
             if (!e.target.closest('#workspace')) return;
             const rect = workspace.getBoundingClientRect(); const mouseX = (e.clientX - rect.left) / zoomLevel; const mouseY = (e.clientY - rect.top) / zoomLevel;
@@ -1964,9 +1968,6 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
 
             if (!action) return;
             if (action === 'pan') {
-                // 文字選択中はスクロールさせない
-                if (window.getSelection().toString().length > 0) return;
-                
                 const dx = e.clientX - startX; const dy = e.clientY - startY;
                 workspaceContainer.scrollLeft = startRect.scrollLeft - dx; workspaceContainer.scrollTop = startRect.scrollTop - dy; return;
             }
@@ -2383,7 +2384,7 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
             const img = new Image();
             img.onload = () => {
                 let w = img.width; let h = img.height;
-                const maxDim = 300; 
+                const maxDim = 300; // 配置時の初期最大サイズを300pxに制限
                 if (w > maxDim || h > maxDim) {
                     if (w > h) { h = h * (maxDim / w); w = maxDim; }
                     else { w = w * (maxDim / h); h = maxDim; }
@@ -2402,14 +2403,6 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
                 window.deselectCurrent();
                 selectedElements = [newImgEl];
                 newImgEl.classList.add('selected');
-                
-                // 追加: 自動的に選択ツールへ切り替える
-                document.getElementById('tool-select').checked = true;
-                currentTool = 'select';
-                updateToolbar();
-                workspaceContainer.className = ''; 
-                workspaceContainer.classList.add('tool-select');
-                
                 window.saveState();
             };
             img.src = dataUrl;
