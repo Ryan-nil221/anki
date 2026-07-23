@@ -253,12 +253,31 @@
         .textLayer { opacity: 0.2; pointer-events: none !important; } 
         .textLayer span { pointer-events: auto !important; -webkit-touch-callout: default !important; -webkit-user-select: text !important; user-select: text !important; cursor: text; }
 
-        #workspace-container.tool-view { cursor: grab; }
-        #workspace-container.tool-view:active { cursor: grabbing; }
-        #workspace-container.tool-view .canvas-element:not(.mask) { pointer-events: none !important; }
-        #workspace-container.tool-mask .textLayer span, #workspace-container.tool-text .textLayer span, #workspace-container.tool-pen .textLayer span, #workspace-container.tool-eraser .textLayer span, #workspace-container.tool-highlight .textLayer span, #workspace-container.tool-shape .textLayer span { pointer-events: none !important; }
-        #workspace-container.tool-pen, #workspace-container.tool-eraser, #workspace-container.tool-pen *, #workspace-container.tool-eraser * { cursor: none !important; }
-        #workspace-container.tool-pen .canvas-element, #workspace-container.tool-eraser .canvas-element { pointer-events: none !important; }
+        /* ツールごとのポインターイベント（当たり判定）の制御 */
+        #workspace-container.tool-pan { cursor: grab; }
+        #workspace-container.tool-pan:active { cursor: grabbing; }
+        #workspace-container.tool-pan .canvas-element { pointer-events: none !important; }
+        /* ※ツール移動時の .textLayer span への制限を削除し、文字選択を可能にしました */
+
+        #workspace-container.tool-select .textLayer span { pointer-events: none !important; user-select: none !important; -webkit-user-select: none !important; }
+        
+        #workspace-container.tool-mask .textLayer span, 
+        #workspace-container.tool-text .textLayer span, 
+        #workspace-container.tool-pen .textLayer span, 
+        #workspace-container.tool-highlight .textLayer span, 
+        #workspace-container.tool-shape .textLayer span { pointer-events: none !important; }
+        
+        #workspace-container.tool-pen, #workspace-container.tool-pen * { cursor: none !important; }
+        
+        /* 選択中ツール以外の要素の当たり判定を消す */
+        #workspace-container.tool-mask .canvas-element:not(.mask),
+        #workspace-container.tool-highlight .canvas-element:not(.highlight-box),
+        #workspace-container.tool-text .canvas-element:not(.text-wrapper),
+        #workspace-container.tool-shape .canvas-element:not(.shape-element),
+        #workspace-container.tool-pen .canvas-element { 
+            pointer-events: none !important; 
+        }
+
         #brush-cursor { position: fixed; border: 1px solid rgba(0, 0, 0, 0.6); background-color: rgba(255, 255, 255, 0.4); border-radius: 50%; pointer-events: none; display: none; z-index: 9999; transform: translate(-50%, -50%); }
 
         .combo-input, .number-input, .text-content { -webkit-user-select: text !important; user-select: text !important; -webkit-touch-callout: default !important; }
@@ -286,16 +305,18 @@
         .text-content { width: 100%; height: 100%; outline: none; white-space: pre-wrap; word-wrap: break-word; overflow: visible; pointer-events: none; font-weight: normal; text-orientation: upright; }
         .text-wrapper.selected .text-content { pointer-events: auto; cursor: text; }
         .canvas-element.selected { transition: none; }
-        #workspace-container.tool-mask .text-wrapper { pointer-events: none !important; }
         
+        /* 黒塗りを一斉に隠す */
+        #workspace-container.masks-hidden .mask { opacity: 0 !important; pointer-events: none !important; }
+
         .shape-element { background-color: transparent; border-radius: 2px; }
         .shape-element svg { pointer-events: none; display: block; overflow: visible; }
         .shape-element svg * { pointer-events: visibleStroke; cursor: pointer; }
         .shape-element.selected { outline: 2px dashed #3b82f6; cursor: move; }
 
         /* --- 画像エレメント --- */
-        .image-element { background-color: transparent; border-radius: 4px; overflow: hidden; }
-        .image-element img { display: block; width: 100%; height: 100%; pointer-events: none; -webkit-user-drag: none; }
+        .image-element { background-color: transparent; border-radius: 4px; }
+        .image-element img { display: block; width: 100%; height: 100%; pointer-events: none; -webkit-user-drag: none; border-radius: 4px; overflow: hidden; }
         .image-element.selected { outline: 2px solid #3b82f6; cursor: move; }
 
         .resize-handle { position: absolute; width: 10px; height: 10px; background-color: white; border: 2px solid #3b82f6; display: none; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
@@ -304,7 +325,11 @@
         .handle-ne { top: -6px; right: -6px; cursor: nesw-resize; }
         .handle-sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
         .handle-se { bottom: -6px; right: -6px; cursor: nwse-resize; }
+        
         #drawing-box { position: absolute; border: 2px dashed #ef4444; background-color: rgba(239, 68, 68, 0.1); pointer-events: none; display: none; z-index: 10; border-radius: 2px; }
+        
+        /* 範囲選択用ボックス */
+        #selection-box { position: absolute; border: 1px solid #3b82f6; background-color: rgba(59, 130, 246, 0.2); pointer-events: none; display: none; z-index: 10000; border-radius: 2px; }
 
         .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(17, 24, 39, 0.7); backdrop-filter: blur(4px); display: none; justify-content: center; align-items: center; z-index: 10000; }
         .overlay-loading { color: white; font-size: 20px; font-weight: bold; flex-direction: column; gap: 10px; }
@@ -401,6 +426,7 @@
 
             <div id="floating-tools-container" class="hideable-ui">
                 <div id="floating-properties">
+                    
                     <span class="prop-group" id="prop-mask-type">
                         <div class="mini-switch">
                             <input type="radio" id="mask-type-rect" name="maskType" value="rect" checked>
@@ -408,6 +434,10 @@
                             <input type="radio" id="mask-type-free" name="maskType" value="free">
                             <label for="mask-type-free" title="手書き"><span class="material-symbols-outlined">draw</span></label>
                         </div>
+                        <div style="width: 1px; height: 16px; background: #d1d5db; margin: 0 8px;"></div>
+                        <button class="btn btn-icon" id="btn-toggle-masks" title="すべての黒塗りを隠す">
+                            <span class="material-symbols-outlined" id="icon-toggle-masks">visibility_off</span>
+                        </button>
                     </span>
 
                     <span class="prop-group" id="prop-shape-type">
@@ -418,6 +448,15 @@
                             <label for="shape-type-circle" title="丸"><span class="material-symbols-outlined">radio_button_unchecked</span></label>
                             <input type="radio" id="shape-type-line" name="shapeType" value="line">
                             <label for="shape-type-line" title="直線"><span class="material-symbols-outlined">horizontal_rule</span></label>
+                        </div>
+                    </span>
+
+                    <span class="prop-group" id="prop-pen-mode">
+                        <div class="mini-switch">
+                            <input type="radio" id="pen-mode-draw" name="penMode" value="pen" checked>
+                            <label for="pen-mode-draw" title="ペン"><span class="material-symbols-outlined icon-filled">edit</span></label>
+                            <input type="radio" id="pen-mode-erase" name="penMode" value="eraser">
+                            <label for="pen-mode-erase" title="消しゴム"><span class="material-symbols-outlined">ink_eraser</span></label>
                         </div>
                     </span>
 
@@ -483,8 +522,11 @@
                 </div>
 
                 <div class="tool-switch">
-                    <input type="radio" id="tool-view" name="currentTool" value="view">
-                    <label for="tool-view" title="移動・選択"><span class="material-symbols-outlined">pan_tool</span></label>
+                    <input type="radio" id="tool-pan" name="currentTool" value="pan">
+                    <label for="tool-pan" title="画面移動"><span class="material-symbols-outlined">pan_tool</span></label>
+
+                    <input type="radio" id="tool-select" name="currentTool" value="select">
+                    <label for="tool-select" title="選択"><span class="material-symbols-outlined">highlight_alt</span></label>
                     
                     <input type="radio" id="tool-mask" name="currentTool" value="mask" checked>
                     <label for="tool-mask" title="黒塗りマスク"><span class="material-symbols-outlined icon-filled">square</span></label>
@@ -499,14 +541,10 @@
                     <label for="tool-shape" title="図形・直線"><span class="material-symbols-outlined">category</span></label>
 
                     <input type="radio" id="tool-pen" name="currentTool" value="pen">
-                    <label for="tool-pen" title="ペン"><span class="material-symbols-outlined">brush</span></label>
-                    
-                    <input type="radio" id="tool-eraser" name="currentTool" value="eraser">
-                    <label for="tool-eraser" title="消しゴム"><span class="material-symbols-outlined">ink_eraser</span></label>
+                    <label for="tool-pen" title="ペン / 消しゴム"><span class="material-symbols-outlined">brush</span></label>
                     
                     <div class="tool-divider"></div>
 
-                    <!-- 追加: 画像追加ボタンとファイル入力 -->
                     <button class="btn btn-icon" id="btn-add-image" title="画像を追加" style="border:none; background:transparent;">
                         <span class="material-symbols-outlined">add_photo_alternate</span>
                     </button>
@@ -528,15 +566,19 @@
                         <img id="uploaded-image" src="" style="display: none;" draggable="false">
                         <div id="pdf-container"></div>
                         <div id="drawing-box"></div>
+                        <div id="selection-box"></div> 
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
     <script>
+        // --- 変数定義・初期設定 ---
         const btnSaveMenu = document.getElementById('btn-save-menu');
         const saveDropdownMenu = document.getElementById('save-dropdown-menu');
+        
+        window.currentFileName = "暗記マスキング";
+        window.isMasksHidden = false; // 黒塗りの表示状態
         
         let currentTextDirection = 'horizontal-tb'; 
         
@@ -568,6 +610,7 @@
         const workspaceWrapper = document.getElementById('workspace-wrapper');
         const workspace = document.getElementById('workspace');
         const drawingBox = document.getElementById('drawing-box');
+        const selectionBox = document.getElementById('selection-box');
         const zoomText = document.getElementById('zoom-text');
         const brushCursor = document.getElementById('brush-cursor');
         const loadingOverlay = document.getElementById('loading-overlay');
@@ -581,6 +624,8 @@
         const toolRadios = document.querySelectorAll('input[name="currentTool"]');
         const maskTypeRadios = document.querySelectorAll('input[name="maskType"]');
         const shapeTypeRadios = document.querySelectorAll('input[name="shapeType"]');
+        const penModeRadios = document.querySelectorAll('input[name="penMode"]'); 
+
         const textSizeInput = document.getElementById('text-size-input'); 
         const penWidthSlider = document.getElementById('pen-width-slider'); 
         const penWidthInput = document.getElementById('pen-width-input'); 
@@ -588,10 +633,13 @@
 
         const customSwatch = document.getElementById('custom-color-swatch');
         const nativeColorPicker = document.getElementById('native-color-picker');
+        const btnToggleMasks = document.getElementById('btn-toggle-masks');
+        const iconToggleMasks = document.getElementById('icon-toggle-masks');
 
         let currentTool = 'mask'; 
         let action = null; 
-        let selectedElement = null; 
+        let selectedElements = []; // 複数選択に対応
+        let startRects = []; // 複数選択移動用
         let currentHandle = null; 
         let startX = 0, startY = 0;
         let startRect = {}; 
@@ -620,6 +668,7 @@
         let savedCanvasState = null;
         
         const toolColors = { text: '#ef4444', highlight: '#ffff00', pen: '#ef4444', shape: '#ef4444' };
+        // 消しゴムもペンのプロパティを使用（幅は別途設定）
         const toolWidths = { pen: 15, eraser: 30, mask: 15, shape: 3 };
 
         document.getElementById('btn-focus-mode').addEventListener('click', function() {
@@ -633,6 +682,21 @@
                 this.title = '集中モード (UI非表示)';
             }
         });
+        
+        if (btnToggleMasks) {
+            btnToggleMasks.addEventListener('click', () => {
+                window.isMasksHidden = !window.isMasksHidden;
+                if (window.isMasksHidden) {
+                    workspaceContainer.classList.add('masks-hidden');
+                    iconToggleMasks.innerText = 'visibility';
+                    btnToggleMasks.title = 'すべての黒塗りを表示する';
+                } else {
+                    workspaceContainer.classList.remove('masks-hidden');
+                    iconToggleMasks.innerText = 'visibility_off';
+                    btnToggleMasks.title = 'すべての黒塗りを隠す';
+                }
+            });
+        }
 
         function hexToRgba(hex, alpha) {
             const r = parseInt(hex.slice(1, 3), 16); const g = parseInt(hex.slice(3, 5), 16); const b = parseInt(hex.slice(5, 7), 16);
@@ -649,8 +713,9 @@
             if (action) {
                 if (action === 'draw_pen' && activeCtx) {
                     if (activeCanvas && activeCanvasIndex !== null) {
+                        const actualTool = document.querySelector('input[name="penMode"]:checked').value;
                         window.canvasDrawings[activeCanvasIndex].push({
-                            tool: currentTool,
+                            tool: actualTool,
                             points: rawPenPoints,
                             width: parseFloat(penWidthInput.value),
                             color: toolColors['pen'],
@@ -663,6 +728,8 @@
                     tempMaskSvg.remove(); tempMaskSvg = null; tempMaskPath = null;
                 } else if (action === 'draw_shape' && currentDrawingShape) {
                     currentDrawingShape.remove(); currentDrawingShape = null;
+                } else if (action === 'box_select') {
+                    selectionBox.style.display = 'none';
                 }
                 action = null; penPoints = []; rawPenPoints = []; activeCanvas = null; activeCtx = null; activeCanvasIndex = null;
                 drawingBox.style.display = 'none';
@@ -671,15 +738,17 @@
 
         document.addEventListener('selectionchange', () => {
             const sel = window.getSelection(); 
-            if (sel.rangeCount > 0 && selectedElement && selectedElement.contains(sel.anchorNode)) {
+            const singleSelected = selectedElements[0];
+            if (sel.rangeCount > 0 && singleSelected && singleSelected.contains(sel.anchorNode)) {
                 savedSelectionRange = sel.getRangeAt(0).cloneRange(); 
             }
         });
 
         document.addEventListener('keydown', function(e) {
-            if ((e.key === 'Delete' || e.key === 'Backspace') && selectedElement) {
+            if ((e.key === 'Delete' || e.key === 'Backspace') && selectedElements.length > 0) {
                 if (!e.target.classList.contains('text-content') && e.target.tagName.toLowerCase() !== 'input') { 
-                    selectedElement.remove(); window.deselectCurrent(); window.saveState(); 
+                    selectedElements.forEach(el => el.remove());
+                    window.deselectCurrent(); window.saveState(); 
                     e.preventDefault();
                 }
             }
@@ -700,17 +769,22 @@
         });
 
         function applyColorToSelection(color) {
-            if (currentTool === 'text' && selectedElement && selectedElement.classList.contains('text-wrapper')) {
-                if (savedSelectionRange && selectedElement.contains(savedSelectionRange.commonAncestorContainer)) {
-                    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(savedSelectionRange); document.execCommand('foreColor', false, color);
-                } else { selectedElement.style.color = color; }
-                window.saveState();
-            } else if (currentTool === 'highlight' && selectedElement && selectedElement.classList.contains('highlight-box')) {
-                selectedElement.style.backgroundColor = hexToRgba(color, penOpacityInput.value); window.saveState();
-            } else if (currentTool === 'shape' && selectedElement && selectedElement.classList.contains('shape-element')) {
-                const shapeNode = selectedElement.querySelector('svg > *');
-                if (shapeNode) { shapeNode.setAttribute('stroke', color); window.saveState(); }
-            }
+            let saved = false;
+            selectedElements.forEach(selectedElement => {
+                if (currentTool === 'text' && selectedElement.classList.contains('text-wrapper')) {
+                    if (savedSelectionRange && selectedElement.contains(savedSelectionRange.commonAncestorContainer)) {
+                        const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(savedSelectionRange); document.execCommand('foreColor', false, color);
+                    } else { selectedElement.style.color = color; }
+                    saved = true;
+                } else if (currentTool === 'highlight' && selectedElement.classList.contains('highlight-box')) {
+                    selectedElement.style.backgroundColor = hexToRgba(color, penOpacityInput.value); 
+                    saved = true;
+                } else if (currentTool === 'shape' && selectedElement.classList.contains('shape-element')) {
+                    const shapeNode = selectedElement.querySelector('svg > *');
+                    if (shapeNode) { shapeNode.setAttribute('stroke', color); saved = true; }
+                }
+            });
+            if (saved) window.saveState();
         }
 
         function updatePaletteUI() {
@@ -742,42 +816,34 @@
             const newColor = e.target.value; toolColors[currentTool] = newColor; updatePaletteUI(); applyColorToSelection(newColor); 
         });
 
-        document.getElementById('btn-text-bold').addEventListener('pointerdown', (e) => {
-            e.preventDefault(); 
-            if (currentTool === 'text' && selectedElement && selectedElement.classList.contains('text-wrapper')) {
-                if (savedSelectionRange && selectedElement.contains(savedSelectionRange.commonAncestorContainer)) {
-                    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(savedSelectionRange);
+        function applyTextCommand(command) {
+            let saved = false;
+            selectedElements.forEach(selectedElement => {
+                if (currentTool === 'text' && selectedElement.classList.contains('text-wrapper')) {
+                    if (savedSelectionRange && selectedElement.contains(savedSelectionRange.commonAncestorContainer)) {
+                        const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(savedSelectionRange);
+                    }
+                    document.execCommand(command, false, null); 
+                    saved = true;
                 }
-                document.execCommand('bold', false, null); window.saveState();
-            }
-        });
+            });
+            if (saved) window.saveState();
+        }
 
-        document.getElementById('btn-text-underline').addEventListener('pointerdown', (e) => {
-            e.preventDefault(); 
-            if (currentTool === 'text' && selectedElement && selectedElement.classList.contains('text-wrapper')) {
-                if (savedSelectionRange && selectedElement.contains(savedSelectionRange.commonAncestorContainer)) {
-                    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(savedSelectionRange);
-                }
-                document.execCommand('underline', false, null); window.saveState();
-            }
-        });
-
-        document.getElementById('btn-text-strike').addEventListener('pointerdown', (e) => {
-            e.preventDefault(); 
-            if (currentTool === 'text' && selectedElement && selectedElement.classList.contains('text-wrapper')) {
-                if (savedSelectionRange && selectedElement.contains(savedSelectionRange.commonAncestorContainer)) {
-                    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(savedSelectionRange);
-                }
-                document.execCommand('strikeThrough', false, null); window.saveState();
-            }
-        });
+        document.getElementById('btn-text-bold').addEventListener('pointerdown', (e) => { e.preventDefault(); applyTextCommand('bold'); });
+        document.getElementById('btn-text-underline').addEventListener('pointerdown', (e) => { e.preventDefault(); applyTextCommand('underline'); });
+        document.getElementById('btn-text-strike').addEventListener('pointerdown', (e) => { e.preventDefault(); applyTextCommand('strikeThrough'); });
 
         function setTextAlign(align) {
-            if (currentTool === 'text' && selectedElement && selectedElement.classList.contains('text-wrapper')) {
-                selectedElement.style.textAlign = align;
-                selectedElement.querySelector('.text-content').style.textAlign = align;
-                window.saveState();
-            }
+            let saved = false;
+            selectedElements.forEach(selectedElement => {
+                if (currentTool === 'text' && selectedElement.classList.contains('text-wrapper')) {
+                    selectedElement.style.textAlign = align;
+                    selectedElement.querySelector('.text-content').style.textAlign = align;
+                    saved = true;
+                }
+            });
+            if(saved) window.saveState();
         }
         document.getElementById('btn-align-left').addEventListener('pointerdown', (e) => { e.preventDefault(); setTextAlign('left'); });
         document.getElementById('btn-align-center').addEventListener('pointerdown', (e) => { e.preventDefault(); setTextAlign('center'); });
@@ -785,11 +851,15 @@
 
         function setTextDirection(dir) {
             currentTextDirection = dir;
-            if (currentTool === 'text' && selectedElement && selectedElement.classList.contains('text-wrapper')) {
-                selectedElement.style.writingMode = dir;
-                selectedElement.querySelector('.text-content').style.writingMode = dir;
-                window.saveState();
-            }
+            let saved = false;
+            selectedElements.forEach(selectedElement => {
+                if (currentTool === 'text' && selectedElement.classList.contains('text-wrapper')) {
+                    selectedElement.style.writingMode = dir;
+                    selectedElement.querySelector('.text-content').style.writingMode = dir;
+                    saved = true;
+                }
+            });
+            if (saved) window.saveState();
         }
         document.getElementById('btn-dir-horiz').addEventListener('pointerdown', (e) => { e.preventDefault(); setTextDirection('horizontal-tb'); });
         document.getElementById('btn-dir-vert-rl').addEventListener('pointerdown', (e) => { e.preventDefault(); setTextDirection('vertical-rl'); });
@@ -806,17 +876,26 @@
             document.getElementById('prop-text-direction').style.display = (currentTool === 'text') ? 'flex' : 'none';
             document.getElementById('prop-text-size').style.display = (currentTool === 'text') ? 'flex' : 'none';
             
-            document.getElementById('prop-pen-width').style.display = ['pen', 'eraser', 'shape'].includes(currentTool) || (currentTool === 'mask' && maskType === 'free') ? 'flex' : 'none';
+            document.getElementById('prop-pen-mode').style.display = (currentTool === 'pen') ? 'flex' : 'none';
+            
+            document.getElementById('prop-pen-width').style.display = ['pen', 'shape'].includes(currentTool) || (currentTool === 'mask' && maskType === 'free') ? 'flex' : 'none';
+            
             document.getElementById('prop-opacity').style.display = ['highlight', 'pen'].includes(currentTool) ? 'flex' : 'none';
             
-            if (['pen', 'eraser', 'mask', 'shape'].includes(currentTool)) {
-                penWidthSlider.value = toolWidths[currentTool];
-                penWidthInput.value = toolWidths[currentTool];
+            if (['pen', 'mask', 'shape'].includes(currentTool)) {
+                if (currentTool === 'pen') {
+                    const mode = document.querySelector('input[name="penMode"]:checked').value;
+                    penWidthSlider.value = toolWidths[mode];
+                    penWidthInput.value = toolWidths[mode];
+                } else {
+                    penWidthSlider.value = toolWidths[currentTool];
+                    penWidthInput.value = toolWidths[currentTool];
+                }
             }
 
             const floatingProps = document.getElementById('floating-properties');
             if(floatingProps) {
-                floatingProps.style.display = ['text', 'highlight', 'pen', 'eraser', 'mask', 'shape'].includes(currentTool) ? 'flex' : 'none';
+                floatingProps.style.display = ['text', 'highlight', 'pen', 'mask', 'shape'].includes(currentTool) ? 'flex' : 'none';
             }
 
             updatePaletteUI(); updateBrushCursor(); 
@@ -826,29 +905,32 @@
             radio.addEventListener('change', (e) => {
                 currentTool = e.target.value; updateToolbar();
                 workspaceContainer.className = ''; workspaceContainer.classList.add('tool-' + currentTool);
-                if (selectedElement) window.deselectCurrent();
+                if (selectedElements.length > 0) window.deselectCurrent();
             });
         });
         maskTypeRadios.forEach(radio => { radio.addEventListener('change', () => { updateToolbar(); }); });
         shapeTypeRadios.forEach(radio => { radio.addEventListener('change', () => { updateToolbar(); }); });
+        penModeRadios.forEach(radio => { radio.addEventListener('change', () => { updateToolbar(); }); });
         
         updateToolbar();
 
         penWidthSlider.addEventListener('input', (e) => { 
             penWidthInput.value = e.target.value; 
-            toolWidths[currentTool] = parseFloat(e.target.value); 
+            const activeType = (currentTool === 'pen') ? document.querySelector('input[name="penMode"]:checked').value : currentTool;
+            toolWidths[activeType] = parseFloat(e.target.value); 
             updateBrushCursor(); 
         });
         penWidthInput.addEventListener('input', (e) => {
             let val = parseFloat(e.target.value); if (val < 0.5) val = 0.5; if (val > 100) val = 100;
             penWidthSlider.value = val; 
-            toolWidths[currentTool] = val; 
+            const activeType = (currentTool === 'pen') ? document.querySelector('input[name="penMode"]:checked').value : currentTool;
+            toolWidths[activeType] = val; 
             updateBrushCursor();
         });
 
         function updateBrushCursor() {
             const maskType = document.querySelector('input[name="maskType"]:checked') ? document.querySelector('input[name="maskType"]:checked').value : 'rect';
-            if (['pen', 'eraser'].includes(currentTool) || (currentTool === 'mask' && maskType === 'free')) {
+            if (['pen'].includes(currentTool) || (currentTool === 'mask' && maskType === 'free')) {
                 const visualSize = parseFloat(penWidthInput.value) * zoomLevel;
                 brushCursor.style.width = visualSize + 'px'; brushCursor.style.height = visualSize + 'px';
             } else {
@@ -898,7 +980,9 @@
         document.getElementById('btn-zoom-reset').addEventListener('click', () => setZoom(1.0));
 
         window.deselectCurrent = function() {
-            if (selectedElement) { selectedElement.classList.remove('selected'); selectedElement = null; savedSelectionRange = null; }
+            selectedElements.forEach(el => el.classList.remove('selected'));
+            selectedElements = [];
+            savedSelectionRange = null;
         }
 
         function executeCanvasCommand(ctx, cmd) {
@@ -925,7 +1009,7 @@
             if (cmd.tool === 'pen') {
                 ctx.globalCompositeOperation = 'source-over';
                 ctx.strokeStyle = hexToRgba(cmd.color, cmd.opacity);
-            } else {
+            } else { // eraser
                 ctx.globalCompositeOperation = 'destination-out';
                 ctx.strokeStyle = 'rgba(0,0,0,1)';
             }
@@ -943,6 +1027,7 @@
             }
             ctx.stroke();
         }
+
         window.saveState = function() {
             const elements = Array.from(workspace.querySelectorAll('.canvas-element')).map(el => {
                 const isText = el.classList.contains('text-wrapper'); 
@@ -1005,7 +1090,7 @@
             window.canvasDrawings = state.canvasCommandsArray.map(cmds => [...cmds]);
             const canvases = Array.from(workspace.querySelectorAll('.drawing-canvas'));
             
-            canuses.forEach((c, i) => {
+            canvases.forEach((c, i) => {
                 if (state.canvasZIndexes && state.canvasZIndexes[i]) {
                     c.style.zIndex = state.canvasZIndexes[i];
                 } else {
@@ -1159,7 +1244,14 @@
         function changeGlobalTextSize(delta) {
             let currentSize = parseInt(textSizeInput.value) || 20; let newSize = currentSize + delta; if (newSize < 10) newSize = 10; 
             textSizeInput.value = newSize;
-            if (selectedElement && selectedElement.classList.contains('text-wrapper')) { selectedElement.style.fontSize = newSize + 'px'; window.saveState(); }
+            let saved = false;
+            selectedElements.forEach(selectedElement => {
+                if (selectedElement.classList.contains('text-wrapper')) { 
+                    selectedElement.style.fontSize = newSize + 'px'; 
+                    saved = true; 
+                }
+            });
+            if(saved) window.saveState();
         }
         document.getElementById('btn-text-size-up').addEventListener('click', () => changeGlobalTextSize(1));
         document.getElementById('btn-text-size-down').addEventListener('click', () => changeGlobalTextSize(-1));
@@ -1179,7 +1271,14 @@
             } 
         });
         document.getElementById('btn-redo').addEventListener('click', () => { if (window.historyIndex < window.historyArray.length - 1) { window.historyIndex++; restoreState(window.historyIndex); } });
-        document.getElementById('btn-delete').addEventListener('click', () => { if (selectedElement) { selectedElement.remove(); window.deselectCurrent(); window.saveState(); } });
+        
+        document.getElementById('btn-delete').addEventListener('click', () => { 
+            if (selectedElements.length > 0) { 
+                selectedElements.forEach(el => el.remove()); 
+                window.deselectCurrent(); 
+                window.saveState(); 
+            } 
+        });
         
         document.getElementById('btn-clear-all').addEventListener('click', () => { 
             if (confirm('すべて削除しますか？（手書きも消えます）')) { 
@@ -1195,12 +1294,26 @@
         });
 
         penOpacityInput.addEventListener('input', (e) => {
-            if (selectedElement && selectedElement.classList.contains('highlight-box')) { selectedElement.style.backgroundColor = hexToRgba(toolColors['highlight'], e.target.value); window.saveState(); }
+            let saved = false;
+            selectedElements.forEach(selectedElement => {
+                if (selectedElement.classList.contains('highlight-box')) { 
+                    selectedElement.style.backgroundColor = hexToRgba(toolColors['highlight'], e.target.value); 
+                    saved = true;
+                }
+            });
+            if (saved) window.saveState();
         });
 
         textSizeInput.addEventListener('input', (e) => {
             const newSize = parseInt(e.target.value); 
-            if (newSize && selectedElement && selectedElement.classList.contains('text-wrapper')) { selectedElement.style.fontSize = newSize + 'px'; window.saveState(); }
+            let saved = false;
+            selectedElements.forEach(selectedElement => {
+                if (newSize && selectedElement.classList.contains('text-wrapper')) { 
+                    selectedElement.style.fontSize = newSize + 'px'; 
+                    saved = true;
+                }
+            });
+            if (saved) window.saveState();
         });
 
         function initWorkspace(isPdf = false) {
@@ -1467,6 +1580,9 @@
             const file = e.target.files[0];
             if (!file) return;
 
+            const lastDotIndex = file.name.lastIndexOf('.');
+            window.currentFileName = lastDotIndex > 0 ? file.name.substring(0, lastDotIndex) : file.name;
+
             const reader = new FileReader();
             reader.onload = async function(event) {
                 currentBackground = {
@@ -1534,8 +1650,8 @@
                 const blob = new Blob([jsonStr], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                const dateStr = new Date().toLocaleDateString('ja-JP').replace(/\//g, '');
-                a.download = `暗記マスキング_${dateStr}.amk`;
+                
+                a.download = `${window.currentFileName}.amk`;
                 a.href = url;
                 a.click();
                 URL.revokeObjectURL(url);
@@ -1606,6 +1722,9 @@
 document.getElementById('projectInput').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
+            
+            const lastDotIndex = file.name.lastIndexOf('.');
+            window.currentFileName = lastDotIndex > 0 ? file.name.substring(0, lastDotIndex) : file.name;
             
             const reader = new FileReader();
             reader.onload = async (event) => {
@@ -1684,50 +1803,72 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
             reader.readAsText(file);
         });
 
+        // ==================
+        // マウスダウンの処理
+        // ==================
         workspaceContainer.addEventListener('pointerdown', function(e) {
-            if (currentTool === 'view') {
-                if (e.target.tagName.toLowerCase() === 'span' && e.target.closest('.textLayer')) return; 
+            if (currentTool === 'pan') {
                 action = 'pan'; startX = e.clientX; startY = e.clientY; startRect = { scrollLeft: workspaceContainer.scrollLeft, scrollTop: workspaceContainer.scrollTop }; 
-                e.preventDefault(); return;
+                return; // CSS側で選択可能にしているためpreventDefaultは呼ばない
             }
             if (!e.target.closest('#workspace')) return;
             const rect = workspace.getBoundingClientRect(); const mouseX = (e.clientX - rect.left) / zoomLevel; const mouseY = (e.clientY - rect.top) / zoomLevel;
 
             if (e.target.classList.contains('resize-handle')) {
-                action = 'resize'; selectedElement = e.target.parentElement; currentHandle = e.target.dataset.pos; 
-                window.bringToFront(selectedElement);
+                action = 'resize'; 
+                const targetElement = e.target.parentElement;
+                if (!targetElement.classList.contains('selected')) {
+                    window.deselectCurrent();
+                    targetElement.classList.add('selected');
+                    selectedElements = [targetElement];
+                }
+                currentHandle = e.target.dataset.pos; 
+                window.bringToFront(targetElement);
                 startX = mouseX; startY = mouseY;
-                startRect = { left: parseFloat(selectedElement.style.left), top: parseFloat(selectedElement.style.top), width: parseFloat(selectedElement.style.width || selectedElement.offsetWidth), height: parseFloat(selectedElement.style.height || selectedElement.offsetHeight) };
+                startRect = { left: parseFloat(targetElement.style.left), top: parseFloat(targetElement.style.top), width: parseFloat(targetElement.style.width || targetElement.offsetWidth), height: parseFloat(targetElement.style.height || targetElement.offsetHeight) };
                 e.preventDefault(); e.stopPropagation(); return;
             }
 
             const clickedTextContent = e.target.closest('.text-content');
             if (clickedTextContent) {
-                if (selectedElement !== clickedTextContent.parentElement) { 
+                const targetElement = clickedTextContent.parentElement;
+                if (!targetElement.classList.contains('selected')) { 
                     window.deselectCurrent(); 
-                    selectedElement = clickedTextContent.parentElement; 
-                    selectedElement.classList.add('selected'); 
+                    targetElement.classList.add('selected'); 
+                    selectedElements = [targetElement];
                 }
-                window.bringToFront(selectedElement);
-                textSizeInput.value = parseInt(selectedElement.style.fontSize); 
+                window.bringToFront(targetElement);
+                textSizeInput.value = parseInt(targetElement.style.fontSize); 
                 e.stopPropagation(); 
                 return; 
             }
 
             const draggableTarget = e.target.closest('.mask, .text-wrapper, .highlight-box, .shape-element, .image-element');
-            if (draggableTarget && !['pen', 'eraser'].includes(currentTool)) {
+            if (draggableTarget && !['pen'].includes(currentTool)) {
                 action = 'move'; 
-                window.deselectCurrent(); 
-                selectedElement = draggableTarget; 
-                selectedElement.classList.add('selected'); 
-                window.bringToFront(selectedElement);
-                if (selectedElement.classList.contains('text-wrapper')) textSizeInput.value = parseInt(selectedElement.style.fontSize);
+                if (!draggableTarget.classList.contains('selected')) {
+                    window.deselectCurrent(); 
+                    draggableTarget.classList.add('selected');
+                    selectedElements = [draggableTarget];
+                }
+                selectedElements.forEach(el => window.bringToFront(el));
+                
+                if (selectedElements.length === 1 && selectedElements[0].classList.contains('text-wrapper')) {
+                    textSizeInput.value = parseInt(selectedElements[0].style.fontSize);
+                }
+
+                // 複数選択時の初期位置を記憶
+                startRects = selectedElements.map(el => ({
+                    el: el,
+                    left: parseFloat(el.style.left),
+                    top: parseFloat(el.style.top)
+                }));
                 startX = mouseX; startY = mouseY; 
-                startRect = { left: parseFloat(selectedElement.style.left), top: parseFloat(selectedElement.style.top) }; 
                 e.preventDefault(); e.stopPropagation(); 
                 return;
             }
             
+            // オブジェクト外をクリックした場合
             window.deselectCurrent();
             
             if (currentTool === 'mask') {
@@ -1775,8 +1916,8 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
             } else if (currentTool === 'text') {
                 const currentFontSize = textSizeInput.value + 'px'; const currentColor = toolColors['text']; 
                 const newText = window.createTextElement((mouseX - 8) + 'px', (mouseY - 8) + 'px', 'max-content', 'max-content', '', currentFontSize, currentColor, 'left', currentTextDirection);
-                selectedElement = newText; newText.classList.add('selected'); setTimeout(() => { newText.querySelector('.text-content').focus(); }, 10);
-            } else if (currentTool === 'pen' || currentTool === 'eraser') {
+                selectedElements = [newText]; newText.classList.add('selected'); setTimeout(() => { newText.querySelector('.text-content').focus(); }, 10);
+            } else if (currentTool === 'pen') {
                 action = 'draw_pen'; 
                 const page = e.target.closest('.pdf-page'); activeCanvas = page ? page.querySelector('.drawing-canvas') : workspace.querySelector('.drawing-canvas');
                 if (!activeCanvas) return;
@@ -1795,25 +1936,37 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
                 savedCanvasState.height = activeCanvas.height;
                 savedCanvasState.getContext('2d').drawImage(activeCanvas, 0, 0);
 
+                const actualTool = document.querySelector('input[name="penMode"]:checked').value;
                 const cmd = {
-                    tool: currentTool,
+                    tool: actualTool,
                     points: rawPenPoints,
                     width: parseFloat(penWidthInput.value),
                     color: toolColors['pen'],
                     opacity: penOpacityInput.value
                 };
                 executeCanvasCommand(activeCtx, cmd);
+            } else if (currentTool === 'select') {
+                // 選択ツールで何もない場所をドラッグしたら範囲選択を開始
+                action = 'box_select';
+                startX = mouseX; startY = mouseY;
+                selectionBox.style.left = startX + 'px'; selectionBox.style.top = startY + 'px';
+                selectionBox.style.width = '0px'; selectionBox.style.height = '0px';
+                selectionBox.style.display = 'block';
+                e.preventDefault();
             }
         });
 
         document.addEventListener('pointermove', function(e) {
             const maskType = document.querySelector('input[name="maskType"]:checked') ? document.querySelector('input[name="maskType"]:checked').value : 'rect';
-            if ((['pen', 'eraser'].includes(currentTool) || (currentTool === 'mask' && maskType === 'free')) && e.target.closest('#workspace-container')) {
+            if ((['pen'].includes(currentTool) || (currentTool === 'mask' && maskType === 'free')) && e.target.closest('#workspace-container')) {
                 brushCursor.style.display = 'block'; brushCursor.style.left = e.clientX + 'px'; brushCursor.style.top = e.clientY + 'px';
             } else { brushCursor.style.display = 'none'; }
 
             if (!action) return;
             if (action === 'pan') {
+                // 文字選択中はスクロールさせない
+                if (window.getSelection().toString().length > 0) return;
+                
                 const dx = e.clientX - startX; const dy = e.clientY - startY;
                 workspaceContainer.scrollLeft = startRect.scrollLeft - dx; workspaceContainer.scrollTop = startRect.scrollTop - dy; return;
             }
@@ -1822,6 +1975,9 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
             if (action === 'draw') {
                 drawingBox.style.width = Math.abs(currentX - startX) + 'px'; drawingBox.style.height = Math.abs(currentY - startY) + 'px';
                 drawingBox.style.left = Math.min(currentX, startX) + 'px'; drawingBox.style.top = Math.min(currentY, startY) + 'px';
+            } else if (action === 'box_select') {
+                selectionBox.style.width = Math.abs(currentX - startX) + 'px'; selectionBox.style.height = Math.abs(currentY - startY) + 'px';
+                selectionBox.style.left = Math.min(currentX, startX) + 'px'; selectionBox.style.top = Math.min(currentY, startY) + 'px';
             } else if (action === 'draw_shape' && currentDrawingShape) {
                 let minX = Math.min(startX, currentX);
                 let minY = Math.min(startY, currentY);
@@ -1863,22 +2019,28 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
                 activeCtx.drawImage(savedCanvasState, 0, 0);
                 activeCtx.restore();
 
+                const actualTool = document.querySelector('input[name="penMode"]:checked').value;
                 const cmd = {
-                    tool: currentTool,
+                    tool: actualTool,
                     points: rawPenPoints,
                     width: parseFloat(penWidthInput.value),
                     color: toolColors['pen'],
                     opacity: penOpacityInput.value
                 };
                 executeCanvasCommand(activeCtx, cmd);
-            } else if (action === 'move' && selectedElement) {
-                selectedElement.style.left = (startRect.left + (currentX - startX)) + 'px'; selectedElement.style.top = (startRect.top + (currentY - startY)) + 'px';
-            } else if (action === 'resize' && selectedElement) {
+            } else if (action === 'move' && startRects.length > 0) {
+                const dx = currentX - startX; const dy = currentY - startY; 
+                startRects.forEach(item => {
+                    item.el.style.left = (item.left + dx) + 'px';
+                    item.el.style.top = (item.top + dy) + 'px';
+                });
+            } else if (action === 'resize' && selectedElements.length > 0) {
+                const target = selectedElements[0];
                 const dx = currentX - startX; const dy = currentY - startY; let newLeft = startRect.left, newTop = startRect.top, newWidth = startRect.width, newHeight = startRect.height;
                 if (currentHandle.includes('e')) newWidth += dx; if (currentHandle.includes('s')) newHeight += dy; 
                 if (currentHandle.includes('w')) { newLeft += dx; newWidth -= dx; } if (currentHandle.includes('n')) { newTop += dy; newHeight -= dy; }
-                if (newWidth > 30) { selectedElement.style.width = newWidth + 'px'; selectedElement.style.left = newLeft + 'px'; }
-                if (newHeight > 30) { selectedElement.style.height = newHeight + 'px'; selectedElement.style.top = newTop + 'px'; }
+                if (newWidth > 30) { target.style.width = newWidth + 'px'; target.style.left = newLeft + 'px'; }
+                if (newHeight > 30) { target.style.height = newHeight + 'px'; target.style.top = newTop + 'px'; }
             }
         });
 
@@ -1887,29 +2049,51 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
             let stateChanged = false;
             if (action === 'pan') { action = null; return; }
             
-if (action === 'draw') {
+            const rect = workspace.getBoundingClientRect(); let currentX = Math.max(0, Math.min((e.clientX - rect.left) / zoomLevel, workspace.offsetWidth)); let currentY = Math.max(0, Math.min((e.clientY - rect.top) / zoomLevel, workspace.offsetHeight));
+
+            if (action === 'draw') {
                 drawingBox.style.display = 'none';
                 let w = parseFloat(drawingBox.style.width);
                 let h = parseFloat(drawingBox.style.height);
                 
-                // 誤クリック（極端に小さい点）でなければ作成する
                 if (Math.hypot(w, h) >= 5) {
                     let left = parseFloat(drawingBox.style.left);
                     let top = parseFloat(drawingBox.style.top);
                     
-                    // 細すぎると後からマウスで選択・移動できなくなるため、最低4pxの太さを確保
                     if (w < 4) { w = 4; left -= 2; }
                     if (h < 4) { h = 4; top -= 2; }
 
                     if (currentTool === 'highlight') {
                         const bgColor = hexToRgba(toolColors['highlight'], penOpacityInput.value);
                         const hl = window.createHighlightElement(left + 'px', top + 'px', w + 'px', h + 'px', bgColor);
-                        window.deselectCurrent(); selectedElement = hl; selectedElement.classList.add('selected');
+                        window.deselectCurrent(); selectedElements = [hl]; hl.classList.add('selected');
                     } else {
                         const mask = window.createMaskElement(left + 'px', top + 'px', w + 'px', h + 'px');
-                        window.deselectCurrent(); selectedElement = mask; selectedElement.classList.add('selected');
+                        window.deselectCurrent(); selectedElements = [mask]; mask.classList.add('selected');
                     }
                     stateChanged = true;
+                }
+            } else if (action === 'box_select') {
+                selectionBox.style.display = 'none';
+                const boxRect = {
+                    left: Math.min(startX, currentX),
+                    top: Math.min(startY, currentY),
+                    right: Math.max(startX, currentX),
+                    bottom: Math.max(startY, currentY)
+                };
+                
+                if (boxRect.right - boxRect.left > 5 && boxRect.bottom - boxRect.top > 5) {
+                    document.querySelectorAll('.canvas-element').forEach(el => {
+                        const elLeft = parseFloat(el.style.left);
+                        const elTop = parseFloat(el.style.top);
+                        const elRight = elLeft + (parseFloat(el.style.width) || el.offsetWidth);
+                        const elBottom = elTop + (parseFloat(el.style.height) || el.offsetHeight);
+                        
+                        if (elLeft < boxRect.right && elRight > boxRect.left && elTop < boxRect.bottom && elBottom > boxRect.top) {
+                            el.classList.add('selected');
+                            selectedElements.push(el);
+                        }
+                    });
                 }
             } else if (action === 'draw_shape') {
                 if (currentDrawingShape) {
@@ -1922,8 +2106,8 @@ if (action === 'draw') {
                         
                         currentDrawingShape.style.pointerEvents = '';
                         window.deselectCurrent(); 
-                        selectedElement = currentDrawingShape; 
-                        selectedElement.classList.add('selected');
+                        selectedElements = [currentDrawingShape]; 
+                        currentDrawingShape.classList.add('selected');
                         stateChanged = true;
                     } else {
                         currentDrawingShape.remove();
@@ -1945,14 +2129,15 @@ if (action === 'draw') {
                     let d = penPoints.map((p, i) => `${i===0?'M':'L'} ${p.x - minX} ${p.y - minY}`).join(' ');
                     
                     const freeMask = window.createFreehandMaskElement(minX+'px', minY+'px', w+'px', h+'px', d, pw);
-                    window.deselectCurrent(); selectedElement = freeMask; selectedElement.classList.add('selected');
+                    window.deselectCurrent(); selectedElements = [freeMask]; freeMask.classList.add('selected');
                     stateChanged = true;
                 }
                 tempMaskSvg = null; tempMaskPath = null;
             } else if (action === 'draw_pen') { 
                 if (activeCanvas && activeCanvasIndex !== null) {
+                    const actualTool = document.querySelector('input[name="penMode"]:checked').value;
                     window.canvasDrawings[activeCanvasIndex].push({
-                        tool: currentTool,
+                        tool: actualTool,
                         points: rawPenPoints,
                         width: parseFloat(penWidthInput.value),
                         color: toolColors['pen'],
@@ -1964,19 +2149,23 @@ if (action === 'draw') {
             } 
             else if (action === 'move' || action === 'resize') { stateChanged = true; }
             
-            action = null; penPoints = []; rawPenPoints = [];
+            action = null; penPoints = []; rawPenPoints = []; startRects = [];
             if (stateChanged) window.saveState();
         });
         
         workspaceContainer.addEventListener('pointerleave', () => { brushCursor.style.display = 'none'; });
         
         document.addEventListener('pointerdown', function(e) {
-            if (!e.target.closest('#workspace') && !e.target.closest('#app-header') && !e.target.closest('#floating-tools-container') && !e.target.closest('.floating-ui') && !e.target.closest('#btn-focus-mode') && selectedElement) {
+            if (!e.target.closest('#workspace') && !e.target.closest('#app-header') && !e.target.closest('#floating-tools-container') && !e.target.closest('.floating-ui') && !e.target.closest('#btn-focus-mode') && selectedElements.length > 0) {
                 window.deselectCurrent();
             }
         });
 
         function drawDOMElementToCanvas(ctx, data) {
+            if (window.isMasksHidden && (data.type === 'mask' || data.type === 'freehand-mask')) {
+                return;
+            }
+
             const left = parseFloat(data.left || 0);
             const top = parseFloat(data.top || 0);
             const width = parseFloat(data.width || 0);
@@ -2087,7 +2276,6 @@ if (action === 'draw') {
             try {
                 const state = window.historyArray[window.historyIndex] || { elements: [], canvasCommandsArray: [] };
                 
-                // 追加: 画像をエクスポート前に読み込む
                 await Promise.all(state.elements.filter(el => el.type === 'image').map(el => {
                     return new Promise(res => {
                         const img = new Image();
@@ -2116,7 +2304,7 @@ if (action === 'draw') {
                     state.elements.forEach(el => drawDOMElementToCanvas(eCtx, el));
                     
                     const link = document.createElement('a'); 
-                    link.download = '暗記マスキング_画像.png'; 
+                    link.download = `${window.currentFileName}_マスキング.png`; 
                     link.href = exportCanvas.toDataURL('image/png'); 
                     link.click();
 
@@ -2163,7 +2351,7 @@ if (action === 'draw') {
                         }
                         pdf.addImage(imgData, 'JPEG', 0, 0, pdfPageWidth, pdfPageHeight);
                     }
-                    pdf.save('暗記マスキング_PDF.pdf');
+                    pdf.save(`${window.currentFileName}_マスキング.pdf`);
                 }
             } catch (error) { 
                 console.error("ダウンロードエラー:", error); 
@@ -2195,7 +2383,7 @@ if (action === 'draw') {
             const img = new Image();
             img.onload = () => {
                 let w = img.width; let h = img.height;
-                const maxDim = 300; // 配置時の初期最大サイズを300pxに制限
+                const maxDim = 300; 
                 if (w > maxDim || h > maxDim) {
                     if (w > h) { h = h * (maxDim / w); w = maxDim; }
                     else { w = w * (maxDim / h); h = maxDim; }
@@ -2212,8 +2400,16 @@ if (action === 'draw') {
 
                 const newImgEl = window.createImageElement(left, top, w + 'px', h + 'px', dataUrl);
                 window.deselectCurrent();
-                selectedElement = newImgEl;
+                selectedElements = [newImgEl];
                 newImgEl.classList.add('selected');
+                
+                // 追加: 自動的に選択ツールへ切り替える
+                document.getElementById('tool-select').checked = true;
+                currentTool = 'select';
+                updateToolbar();
+                workspaceContainer.className = ''; 
+                workspaceContainer.classList.add('tool-select');
+                
                 window.saveState();
             };
             img.src = dataUrl;
@@ -2249,5 +2445,3 @@ if (action === 'draw') {
         });
 
     </script>
-</body>
-</html>
