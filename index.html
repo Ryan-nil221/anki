@@ -5,17 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>暗記マスキング - 登録不要のPDF・画像を黒塗りできる無料の学習用WEBアプリ！</title>
     <meta name="description" content="PDFや画像をアップロードして、覚えたい部分をサッと黒塗り！「暗記マスキング」は、画面上でカーソルを合わせるだけで答えを確認しながら勉強できる無料の学習WEBアプリです。毎日の学習をスマートに効率化します。">
-   
-    <!-- 検索エンジンに正規URL（新ドメイン）を伝える -->
+    
     <link rel="canonical" href="https://ankimasking.com/">
 
-    <!-- SNSシェア用のOGP設定 -->
     <meta property="og:url" content="https://ankimasking.com/">
     <meta property="og:type" content="website">
     <meta property="og:title" content="暗記マスキング - 登録不要のPDF・画像を黒塗りできる無料の学習用WEBアプリ！">
     <meta property="og:description" content="PDFや画像をアップロードして、覚えたい部分をサッと黒塗り！「暗記マスキング」は、画面上でカーソルを合わせるだけで答えを確認しながら勉強できる無料の学習WEBアプリです。">
     <meta property="og:site_name" content="暗記マスキング">
-    <meta property="og:image" content="https://ankimasking.com/ogp.png"> <!-- ※SNS用画像を用意する場合 -->
+    <meta property="og:image" content="https://ankimasking.com/ogp.png"> 
     <meta name="twitter:card" content="summary_large_image">
     
     <link rel="icon" type="image/png" href="favicon.png">
@@ -26,15 +24,13 @@
     
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0" />
 
-    <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-Y444L4XDF3"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-Y444L4XDF3');
-</script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y444L4XDF3"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-Y444L4XDF3');
+    </script>
 
     <style>
         /* --- モダンリセット & ベースレイアウト --- */
@@ -257,7 +253,6 @@
         #workspace-container.tool-pan { cursor: grab; }
         #workspace-container.tool-pan:active { cursor: grabbing; }
         #workspace-container.tool-pan .canvas-element { pointer-events: none !important; }
-        /* ※ツール移動時の .textLayer span への制限を削除し、文字選択を可能にしました */
 
         #workspace-container.tool-select .textLayer span { pointer-events: none !important; user-select: none !important; -webkit-user-select: none !important; }
         
@@ -269,14 +264,14 @@
         
         #workspace-container.tool-pen, #workspace-container.tool-pen * { cursor: none !important; }
         
-        /* 選択中ツール以外の要素の当たり判定を消す */
-        #workspace-container.tool-mask .canvas-element:not(.mask),
-        #workspace-container.tool-highlight .canvas-element:not(.highlight-box),
-        #workspace-container.tool-text .canvas-element:not(.text-wrapper),
-        #workspace-container.tool-shape .canvas-element:not(.shape-element),
-        #workspace-container.tool-pen .canvas-element { 
-            pointer-events: none !important; 
-        }
+        /* 選択中ツール以外の要素の当たり判定を消す（★ただし .mask は常に判定を残す） */
+#workspace-container.tool-mask .canvas-element:not(.mask),
+#workspace-container.tool-highlight .canvas-element:not(.highlight-box):not(.mask),
+#workspace-container.tool-text .canvas-element:not(.text-wrapper):not(.mask),
+#workspace-container.tool-shape .canvas-element:not(.shape-element):not(.mask),
+#workspace-container.tool-pen .canvas-element:not(.mask) { 
+    pointer-events: none !important; 
+}
 
         #brush-cursor { position: fixed; border: 1px solid rgba(0, 0, 0, 0.6); background-color: rgba(255, 255, 255, 0.4); border-radius: 50%; pointer-events: none; display: none; z-index: 9999; transform: translate(-50%, -50%); }
 
@@ -302,7 +297,7 @@
         
         .text-wrapper { min-width: 30px; min-height: 30px; font-size: 20px; padding: 8px; cursor: move; -webkit-touch-callout: none; border-radius: 4px; }
         .text-wrapper.selected { outline: 2px solid #3b82f6; background-color: rgba(255, 255, 255, 0.6); }
-        .text-content { width: 100%; height: 100%; outline: none; white-space: pre-wrap; word-wrap: break-word; overflow: visible; pointer-events: none; font-weight: normal; text-orientation: upright; }
+        .text-content { width: 100%; height: 100%; outline: none; white-space: pre-wrap; word-wrap: break-word; overflow: visible; pointer-events: none; font-weight: normal; text-orientation: upright; margin: 0;}
         .text-wrapper.selected .text-content { pointer-events: auto; cursor: text; }
         .canvas-element.selected { transition: none; }
         
@@ -312,19 +307,34 @@
         .shape-element { background-color: transparent; border-radius: 2px; }
         .shape-element svg { pointer-events: none; display: block; overflow: visible; }
         .shape-element svg * { pointer-events: visibleStroke; cursor: pointer; }
-        .shape-element.selected { outline: 2px dashed #3b82f6; cursor: move; }
+        
+        /* 【改修】直線以外の図形は四角い枠線を出す */
+        .shape-element:not([data-shape-type="line"]).selected { outline: 2px dashed #3b82f6; cursor: move; }
+        
+        /* 【改修】直線の場合は枠線を消し、カーソルを移動用にする */
+        .shape-element[data-shape-type="line"].selected { outline: none; cursor: move; }
 
         /* --- 画像エレメント --- */
         .image-element { background-color: transparent; border-radius: 4px; }
         .image-element img { display: block; width: 100%; height: 100%; pointer-events: none; -webkit-user-drag: none; border-radius: 4px; overflow: hidden; }
         .image-element.selected { outline: 2px solid #3b82f6; cursor: move; }
 
-        .resize-handle { position: absolute; width: 10px; height: 10px; background-color: white; border: 2px solid #3b82f6; display: none; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
-        .canvas-element.selected .resize-handle { display: block; z-index: 50; }
+        /* 通常の四隅のハンドル */
+        .resize-handle { position: absolute; width: 10px; height: 10px; background-color: white; border: 2px solid #3b82f6; display: none; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,0.2); z-index: 50; }
+        .canvas-element.selected .resize-handle { display: block; }
         .handle-nw { top: -6px; left: -6px; cursor: nwse-resize; }
         .handle-ne { top: -6px; right: -6px; cursor: nesw-resize; }
         .handle-sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
         .handle-se { bottom: -6px; right: -6px; cursor: nwse-resize; }
+
+        /* 【改修】直線(Line)用の2点ハンドル（p1, p2）の配置 */
+        .shape-element[data-shape-type="line"] .resize-handle {
+            width: 14px; height: 14px; margin: -7px 0 0 -7px; /* 14pxの真ん中を合わせる */
+        }
+        .shape-element[data-shape-type="line"][data-line-dir="\\"] .handle-p1 { top: 0; left: 0; cursor: crosshair; }
+        .shape-element[data-shape-type="line"][data-line-dir="\\"] .handle-p2 { top: 100%; left: 100%; cursor: crosshair; }
+        .shape-element[data-shape-type="line"][data-line-dir="/"] .handle-p1 { top: 0; left: 100%; cursor: crosshair; }
+        .shape-element[data-shape-type="line"][data-line-dir="/"] .handle-p2 { top: 100%; left: 0; cursor: crosshair; }
         
         #drawing-box { position: absolute; border: 2px dashed #ef4444; background-color: rgba(239, 68, 68, 0.1); pointer-events: none; display: none; z-index: 10; border-radius: 2px; }
         
@@ -578,7 +588,7 @@
         const saveDropdownMenu = document.getElementById('save-dropdown-menu');
         
         window.currentFileName = "暗記マスキング";
-        window.isMasksHidden = false; // 黒塗りの表示状態
+        window.isMasksHidden = false; 
         
         let currentTextDirection = 'horizontal-tb'; 
         
@@ -593,6 +603,7 @@
 
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
+        // 解像度のベーススケール。遅延再描画の最大倍率を考慮し、上限を設けます。
         const RENDER_SCALE = Math.min(window.devicePixelRatio || 2, 2.0); 
         
         window.globalZIndex = 10;
@@ -638,12 +649,13 @@
 
         let currentTool = 'mask'; 
         let action = null; 
-        let selectedElements = []; // 複数選択に対応
-        let startRects = []; // 複数選択移動用
+        let selectedElements = []; 
+        let startRects = []; 
         let currentHandle = null; 
         let startX = 0, startY = 0;
         let startRect = {}; 
         let zoomLevel = 1.0; 
+        let zoomTimeout = null; 
         
         window.historyArray = [];
         window.historyIndex = -1;
@@ -668,8 +680,9 @@
         let savedCanvasState = null;
         
         const toolColors = { text: '#ef4444', highlight: '#ffff00', pen: '#ef4444', shape: '#ef4444' };
-        // 消しゴムもペンのプロパティを使用（幅は別途設定）
-        const toolWidths = { pen: 15, eraser: 30, mask: 15, shape: 3 };
+        
+        // 【改修】図形のデフォルトの太さを2pxに変更
+        const toolWidths = { pen: 15, eraser: 30, mask: 15, shape: 2 };
 
         document.getElementById('btn-focus-mode').addEventListener('click', function() {
             document.body.classList.toggle('focus-mode');
@@ -752,7 +765,6 @@
                     e.preventDefault();
                 }
             }
-
             const isTyping = e.target.tagName.toLowerCase() === 'input' || e.target.tagName.toLowerCase() === 'textarea' || e.target.isContentEditable || e.target.classList.contains('text-content');
             if (!isTyping) {
                 const cmdOrCtrl = e.metaKey || e.ctrlKey;
@@ -773,6 +785,10 @@
             selectedElements.forEach(selectedElement => {
                 if (currentTool === 'text' && selectedElement.classList.contains('text-wrapper')) {
                     if (savedSelectionRange && selectedElement.contains(savedSelectionRange.commonAncestorContainer)) {
+                        // ★修正1: 確実にフォーカスを戻してから色を適用して保存させる
+                        const textContent = selectedElement.querySelector('.text-content');
+                        if (textContent) textContent.focus(); 
+                        
                         const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(savedSelectionRange); document.execCommand('foreColor', false, color);
                     } else { selectedElement.style.color = color; }
                     saved = true;
@@ -782,6 +798,30 @@
                 } else if (currentTool === 'shape' && selectedElement.classList.contains('shape-element')) {
                     const shapeNode = selectedElement.querySelector('svg > *');
                     if (shapeNode) { shapeNode.setAttribute('stroke', color); saved = true; }
+                }
+            });
+            if (saved) window.saveState();
+        }
+
+        /* パレットのUI更新などのコードがこの間にあります（ここはそのまま） */
+        function updatePaletteUI() { /* 略 */ }
+        document.querySelectorAll('.swatch:not(.custom-swatch)').forEach(swatch => { /* 略 */ });
+        customSwatch.addEventListener('click', () => { /* 略 */ });
+        nativeColorPicker.addEventListener('input', (e) => { /* 略 */ });
+
+        function applyTextCommand(command) {
+            let saved = false;
+            selectedElements.forEach(selectedElement => {
+                if (currentTool === 'text' && selectedElement.classList.contains('text-wrapper')) {
+                    if (savedSelectionRange && selectedElement.contains(savedSelectionRange.commonAncestorContainer)) {
+                        // ★修正2: 太字や下線も確実に保存させる
+                        const textContent = selectedElement.querySelector('.text-content');
+                        if (textContent) textContent.focus(); 
+
+                        const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(savedSelectionRange);
+                    }
+                    document.execCommand(command, false, null); 
+                    saved = true;
                 }
             });
             if (saved) window.saveState();
@@ -905,6 +945,9 @@
             radio.addEventListener('change', (e) => {
                 currentTool = e.target.value; updateToolbar();
                 workspaceContainer.className = ''; workspaceContainer.classList.add('tool-' + currentTool);
+                if (window.isMasksHidden) {
+            workspaceContainer.classList.add('masks-hidden');
+        }
                 if (selectedElements.length > 0) window.deselectCurrent();
             });
         });
@@ -971,6 +1014,30 @@
             workspaceContainer.scrollTop = (centerY * zoomLevel) + newMarginTop - (containerH / 2);
             
             updateBrushCursor(); 
+
+            clearTimeout(zoomTimeout);
+            zoomTimeout = setTimeout(() => {
+                if (currentBackground && currentBackground.type === 'pdf' && typeof renderPdfPageAsync === 'function') {
+                    const currentP = parseInt(pageInput.value);
+                    for(let i = Math.max(1, currentP - 1); i <= Math.min(totalPdfPages, currentP + 1); i++) {
+                        const pDiv = document.getElementById(`pdf-page-${i}`);
+                        if (pDiv) renderPdfPageAsync(pDiv, zoomLevel);
+                    }
+                } else if (currentBackground && currentBackground.type !== 'pdf') {
+                    const drawCanvas = workspace.querySelector('.drawing-canvas');
+                    if (drawCanvas) {
+                        const actualScale = Math.min(RENDER_SCALE * zoomLevel, 4.0);
+                        drawCanvas.width = workspace.offsetWidth * actualScale; 
+                        drawCanvas.height = workspace.offsetHeight * actualScale;
+                        const ctx = drawCanvas.getContext('2d');
+                        ctx.setTransform(1, 0, 0, 1, 0, 0); 
+                        ctx.scale(actualScale, actualScale);
+                        ctx.clearRect(0, 0, workspace.offsetWidth, workspace.offsetHeight);
+                        const cmds = window.canvasDrawings[drawCanvas.dataset.canvasIndex || 0] || [];
+                        cmds.forEach(cmd => executeCanvasCommand(ctx, cmd));
+                    }
+                }
+            }, 500);
         }
 
         window.addEventListener('resize', () => { if(uploadedImage.src || totalPdfPages > 0) setZoom(zoomLevel); });
@@ -984,7 +1051,7 @@
             selectedElements = [];
             savedSelectionRange = null;
         }
-
+        
         function executeCanvasCommand(ctx, cmd) {
             if (cmd.tool === 'legacy_base64') {
                 const img = new Image();
@@ -1009,7 +1076,7 @@
             if (cmd.tool === 'pen') {
                 ctx.globalCompositeOperation = 'source-over';
                 ctx.strokeStyle = hexToRgba(cmd.color, cmd.opacity);
-            } else { // eraser
+            } else { 
                 ctx.globalCompositeOperation = 'destination-out';
                 ctx.strokeStyle = 'rgba(0,0,0,1)';
             }
@@ -1224,8 +1291,23 @@
             return wrapper;
         }
 
+        // 【改修】直線(Line)用の専用2点ハンドル（p1, p2）を動的追加
         function addResizeHandles(element) {
-            ['nw', 'ne', 'sw', 'se'].forEach(pos => { const handle = document.createElement('div'); handle.className = `resize-handle handle-${pos}`; handle.dataset.pos = pos; element.appendChild(handle); });
+            if (element.classList.contains('shape-element') && element.dataset.shapeType === 'line') {
+                ['p1', 'p2'].forEach(pos => {
+                    const handle = document.createElement('div');
+                    handle.className = `resize-handle handle-${pos}`;
+                    handle.dataset.pos = pos;
+                    element.appendChild(handle);
+                });
+            } else {
+                ['nw', 'ne', 'sw', 'se'].forEach(pos => { 
+                    const handle = document.createElement('div'); 
+                    handle.className = `resize-handle handle-${pos}`; 
+                    handle.dataset.pos = pos; 
+                    element.appendChild(handle); 
+                });
+            }
         }
 
         const textSizeBtn = document.getElementById('text-size-btn');
@@ -1384,7 +1466,7 @@
             pdfSidebar.style.display = isSidebarOpen ? 'flex' : 'none';
         });
 
-        async function renderPdfPageAsync(pageDiv) {
+        async function renderPdfPageAsync(pageDiv, targetZoom = 1.0) {
             pageDiv.dataset.rendered = "true";
             const pageNum = parseInt(pageDiv.dataset.page);
             try {
@@ -1394,9 +1476,11 @@
                 pageDiv.style.width = viewport.width + 'px'; 
                 pageDiv.style.height = viewport.height + 'px';
                 
+                const dynamicScale = Math.min(RENDER_SCALE * targetZoom, 4.0);
+                
                 const canvas = pageDiv.querySelector('canvas:not(.drawing-canvas)');
-                canvas.width = viewport.width * RENDER_SCALE; 
-                canvas.height = viewport.height * RENDER_SCALE; 
+                canvas.width = viewport.width * dynamicScale; 
+                canvas.height = viewport.height * dynamicScale; 
                 
                 const textLayerDiv = pageDiv.querySelector('.textLayer');
                 textLayerDiv.style.width = viewport.width + 'px'; 
@@ -1404,13 +1488,13 @@
                 textLayerDiv.style.setProperty('--scale-factor', viewport.scale);
                 
                 const drawCanvas = pageDiv.querySelector('.drawing-canvas');
-                drawCanvas.width = viewport.width * RENDER_SCALE; 
-                drawCanvas.height = viewport.height * RENDER_SCALE;
+                drawCanvas.width = viewport.width * dynamicScale; 
+                drawCanvas.height = viewport.height * dynamicScale;
                 const dCtx = drawCanvas.getContext('2d');
                 dCtx.setTransform(1, 0, 0, 1, 0, 0); 
-                dCtx.scale(RENDER_SCALE, RENDER_SCALE);
+                dCtx.scale(dynamicScale, dynamicScale);
 
-                const scaledViewport = page.getViewport({ scale: window.pdfBaseScale * RENDER_SCALE });
+                const scaledViewport = page.getViewport({ scale: window.pdfBaseScale * dynamicScale });
                 await page.render({ canvasContext: canvas.getContext('2d'), viewport: scaledViewport }).promise;
                 
                 const textContent = await page.getTextContent(); 
@@ -1485,7 +1569,7 @@
                         window.pageObserver = new IntersectionObserver((entries) => {
                             entries.forEach(entry => {
                                 if (entry.isIntersecting && entry.target.dataset.rendered !== "true") {
-                                    renderPdfPageAsync(entry.target);
+                                    renderPdfPageAsync(entry.target, zoomLevel);
                                 }
                             });
                         }, { root: workspaceContainer, rootMargin: '800px 0px' });
@@ -1719,7 +1803,7 @@
             window.saveState();
         }
 
-document.getElementById('projectInput').addEventListener('change', (e) => {
+        document.getElementById('projectInput').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
             
@@ -1803,13 +1887,11 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
             reader.readAsText(file);
         });
 
-        // ==================
-        // マウスダウンの処理
-        // ==================
+        // 【改修】ポインターダウン（掴む・描画開始）の制御
         workspaceContainer.addEventListener('pointerdown', function(e) {
             if (currentTool === 'pan') {
                 action = 'pan'; startX = e.clientX; startY = e.clientY; startRect = { scrollLeft: workspaceContainer.scrollLeft, scrollTop: workspaceContainer.scrollTop }; 
-                return; // CSS側で選択可能にしているためpreventDefaultは呼ばない
+                return; 
             }
             if (!e.target.closest('#workspace')) return;
             const rect = workspace.getBoundingClientRect(); const mouseX = (e.clientX - rect.left) / zoomLevel; const mouseY = (e.clientY - rect.top) / zoomLevel;
@@ -1826,6 +1908,23 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
                 window.bringToFront(targetElement);
                 startX = mouseX; startY = mouseY;
                 startRect = { left: parseFloat(targetElement.style.left), top: parseFloat(targetElement.style.top), width: parseFloat(targetElement.style.width || targetElement.offsetWidth), height: parseFloat(targetElement.style.height || targetElement.offsetHeight) };
+                
+                // 【追加】直線の場合、対角の座標を固定点として記憶する
+                if (targetElement.dataset.shapeType === 'line') {
+                    const dir = targetElement.dataset.lineDir || '\\';
+                    const isP1 = currentHandle === 'p1';
+                    let fixedX, fixedY;
+                    if (dir === '\\') {
+                        fixedX = isP1 ? startRect.left + startRect.width : startRect.left;
+                        fixedY = isP1 ? startRect.top + startRect.height : startRect.top;
+                    } else { // '/'
+                        fixedX = isP1 ? startRect.left : startRect.left + startRect.width;
+                        fixedY = isP1 ? startRect.top + startRect.height : startRect.top;
+                    }
+                    targetElement.dataset.fixedX = fixedX;
+                    targetElement.dataset.fixedY = fixedY;
+                }
+
                 e.preventDefault(); e.stopPropagation(); return;
             }
 
@@ -1857,7 +1956,6 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
                     textSizeInput.value = parseInt(selectedElements[0].style.fontSize);
                 }
 
-                // 複数選択時の初期位置を記憶
                 startRects = selectedElements.map(el => ({
                     el: el,
                     left: parseFloat(el.style.left),
@@ -1868,7 +1966,6 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
                 return;
             }
             
-            // オブジェクト外をクリックした場合
             window.deselectCurrent();
             
             if (currentTool === 'mask') {
@@ -1876,7 +1973,8 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
                 if (maskType === 'rect') {
                     action = 'draw'; startX = mouseX; startY = mouseY;
                     drawingBox.style.left = startX + 'px'; drawingBox.style.top = startY + 'px';
-                    drawingBox.style.width = '0px'; drawingBox.style.height = '0px'; drawingBox.style.display = 'block';
+                    drawingBox.style.width = '0px'; drawingBox.style.height = '0px';
+                    drawingBox.style.display = 'block';
                 } else {
                     action = 'draw_freehand_mask';
                     penPoints = [{x: mouseX, y: mouseY}];
@@ -1912,7 +2010,8 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
             } else if (currentTool === 'highlight') {
                 action = 'draw'; startX = mouseX; startY = mouseY;
                 drawingBox.style.left = startX + 'px'; drawingBox.style.top = startY + 'px';
-                drawingBox.style.width = '0px'; drawingBox.style.height = '0px'; drawingBox.style.display = 'block';
+                drawingBox.style.width = '0px'; drawingBox.style.height = '0px';
+                drawingBox.style.display = 'block';
             } else if (currentTool === 'text') {
                 const currentFontSize = textSizeInput.value + 'px'; const currentColor = toolColors['text']; 
                 const newText = window.createTextElement((mouseX - 8) + 'px', (mouseY - 8) + 'px', 'max-content', 'max-content', '', currentFontSize, currentColor, 'left', currentTextDirection);
@@ -1946,7 +2045,6 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
                 };
                 executeCanvasCommand(activeCtx, cmd);
             } else if (currentTool === 'select') {
-                // 選択ツールで何もない場所をドラッグしたら範囲選択を開始
                 action = 'box_select';
                 startX = mouseX; startY = mouseY;
                 selectionBox.style.left = startX + 'px'; selectionBox.style.top = startY + 'px';
@@ -1956,6 +2054,7 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
             }
         });
 
+        // 【改修】ポインター移動（ドラッグなど）の制御
         document.addEventListener('pointermove', function(e) {
             const maskType = document.querySelector('input[name="maskType"]:checked') ? document.querySelector('input[name="maskType"]:checked').value : 'rect';
             if ((['pen'].includes(currentTool) || (currentTool === 'mask' && maskType === 'free')) && e.target.closest('#workspace-container')) {
@@ -1964,7 +2063,6 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
 
             if (!action) return;
             if (action === 'pan') {
-                // 文字選択中はスクロールさせない
                 if (window.getSelection().toString().length > 0) return;
                 
                 const dx = e.clientX - startX; const dy = e.clientY - startY;
@@ -2036,11 +2134,43 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
                 });
             } else if (action === 'resize' && selectedElements.length > 0) {
                 const target = selectedElements[0];
-                const dx = currentX - startX; const dy = currentY - startY; let newLeft = startRect.left, newTop = startRect.top, newWidth = startRect.width, newHeight = startRect.height;
-                if (currentHandle.includes('e')) newWidth += dx; if (currentHandle.includes('s')) newHeight += dy; 
-                if (currentHandle.includes('w')) { newLeft += dx; newWidth -= dx; } if (currentHandle.includes('n')) { newTop += dy; newHeight -= dy; }
-                if (newWidth > 30) { target.style.width = newWidth + 'px'; target.style.left = newLeft + 'px'; }
-                if (newHeight > 30) { target.style.height = newHeight + 'px'; target.style.top = newTop + 'px'; }
+                
+                // 【追加】直線の場合は2点ドラッグ処理に切り替え
+                if (target.dataset.shapeType === 'line') {
+                    const fixedX = parseFloat(target.dataset.fixedX);
+                    const fixedY = parseFloat(target.dataset.fixedY);
+                    
+                    const minX = Math.min(fixedX, currentX);
+                    const minY = Math.min(fixedY, currentY);
+                    const w = Math.abs(fixedX - currentX);
+                    const h = Math.abs(fixedY - currentY);
+                    
+                    target.style.left = minX + 'px';
+                    target.style.top = minY + 'px';
+                    target.style.width = Math.max(w, 1) + 'px';
+                    target.style.height = Math.max(h, 1) + 'px';
+                    
+                    let lineDir = (fixedX < currentX && fixedY > currentY) || (fixedX > currentX && fixedY < currentY) ? '/' : '\\';
+                    target.dataset.lineDir = lineDir;
+                    
+                    const shapeNode = target.querySelector('svg > line');
+                    if (shapeNode) {
+                        if (lineDir === '/') {
+                            shapeNode.setAttribute('x1', '0'); shapeNode.setAttribute('y1', '100%');
+                            shapeNode.setAttribute('x2', '100%'); shapeNode.setAttribute('y2', '0');
+                        } else {
+                            shapeNode.setAttribute('x1', '0'); shapeNode.setAttribute('y1', '0');
+                            shapeNode.setAttribute('x2', '100%'); shapeNode.setAttribute('y2', '100%');
+                        }
+                    }
+                } else {
+                    // 既存の四角形リサイズ処理
+                    const dx = currentX - startX; const dy = currentY - startY; let newLeft = startRect.left, newTop = startRect.top, newWidth = startRect.width, newHeight = startRect.height;
+                    if (currentHandle.includes('e')) newWidth += dx; if (currentHandle.includes('s')) newHeight += dy; 
+                    if (currentHandle.includes('w')) { newLeft += dx; newWidth -= dx; } if (currentHandle.includes('n')) { newTop += dy; newHeight -= dy; }
+                    if (newWidth > 30) { target.style.width = newWidth + 'px'; target.style.left = newLeft + 'px'; }
+                    if (newHeight > 30) { target.style.height = newHeight + 'px'; target.style.top = newTop + 'px'; }
+                }
             }
         });
 
@@ -2161,15 +2291,17 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
             }
         });
 
-        function drawDOMElementToCanvas(ctx, data) {
+        async function drawDOMElementToCanvas(ctx, data) {
             if (window.isMasksHidden && (data.type === 'mask' || data.type === 'freehand-mask')) {
                 return;
             }
 
             const left = parseFloat(data.left || 0);
             const top = parseFloat(data.top || 0);
-            const width = parseFloat(data.width || 0);
-            const height = parseFloat(data.height || 0);
+            let width = parseFloat(data.width);
+            if (isNaN(width)) width = 300; 
+            let height = parseFloat(data.height);
+            if (isNaN(height)) height = 100;
 
             ctx.save();
             ctx.translate(left, top);
@@ -2213,48 +2345,124 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
             } else if (data.type === 'text') {
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = data.content;
-                document.body.appendChild(tempDiv);
-                const text = tempDiv.innerText;
-                document.body.removeChild(tempDiv);
 
                 ctx.translate(8, 8); 
-                ctx.fillStyle = data.color;
-                ctx.font = `${data.fontSize || '20px'} sans-serif`;
+                ctx.textBaseline = 'top'; // ★修正3: 基準をtopに戻す
 
-                if (data.writingMode === 'vertical-rl' || data.writingMode === 'vertical-lr') {
-                    const isRL = data.writingMode === 'vertical-rl';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'top';
-                    const lines = text.split('\n');
-                    const fontSize = parseFloat(data.fontSize || 20);
-                    const lineHeight = fontSize * 1.2;
+                const baseFontSize = parseFloat(data.fontSize || 20);
+                const lineHeight = baseFontSize * 1.2;
+                // ★修正4: CSS特有の「行間による上下の余白」を正確に計算してズレをなくす
+                const halfLeading = (lineHeight - baseFontSize) / 2; 
 
-                    lines.forEach((line, i) => {
-                        let x = isRL ? (width - 16 - (i * lineHeight) - fontSize / 2) : ((i * lineHeight) + fontSize / 2);
-                        let y = 0;
-                        for (let j = 0; j < line.length; j++) {
-                            const char = line[j];
-                            ctx.fillText(char, x, y);
-                            y += fontSize;
+                const isVertical = data.writingMode === 'vertical-rl' || data.writingMode === 'vertical-lr';
+
+                let lines = [];
+                let currentLine = [];
+
+                function parseNode(node, color, isBold, isUnderline, isStrike) {
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        const texts = node.textContent.split(/\r?\n/);
+                        texts.forEach((text, index) => {
+                            if (index > 0) {
+                                lines.push(currentLine);
+                                currentLine = [];
+                            }
+                            if (text) currentLine.push({ text, color, isBold, isUnderline, isStrike });
+                        });
+                    } else if (node.nodeType === Node.ELEMENT_NODE) {
+                        const tag = node.tagName.toLowerCase();
+                        if (tag === 'br') {
+                            lines.push(currentLine);
+                            currentLine = [];
+                        } else if (tag === 'div' || tag === 'p') {
+                            if (currentLine.length > 0) {
+                                lines.push(currentLine);
+                                currentLine = [];
+                            }
                         }
+
+                        let nodeColor = color;
+                        if (node.style && node.style.color) {
+                            nodeColor = node.style.color;
+                        } else if (node.hasAttribute('color')) {
+                            let attrColor = node.getAttribute('color');
+                            if (attrColor) {
+                                // ★修正5: 空白や引用符などのゴミを除去し、Canvasが黒くなるのを完全ブロック
+                                attrColor = attrColor.replace(/['"]/g, '').trim();
+                                if (/^[0-9A-Fa-f]{3,6}$/.test(attrColor)) {
+                                    attrColor = '#' + attrColor;
+                                }
+                                nodeColor = attrColor;
+                            }
+                        }
+
+                        let nodeBold = isBold || tag === 'b' || tag === 'strong' || (node.style && node.style.fontWeight === 'bold');
+                        let nodeUnderline = isUnderline || tag === 'u' || (node.style && node.style.textDecoration && node.style.textDecoration.includes('underline'));
+                        let nodeStrike = isStrike || tag === 's' || tag === 'strike' || (node.style && node.style.textDecoration && node.style.textDecoration.includes('line-through'));
+
+                        Array.from(node.childNodes).forEach(child => parseNode(child, nodeColor, nodeBold, nodeUnderline, nodeStrike));
+
+                        if (tag === 'div' || tag === 'p') {
+                            if (currentLine.length > 0) {
+                                lines.push(currentLine);
+                                currentLine = [];
+                            }
+                        }
+                    }
+                }
+
+                parseNode(tempDiv, data.color || '#ef4444', false, false, false);
+                if (currentLine.length > 0) lines.push(currentLine);
+
+                if (isVertical) {
+                    ctx.textAlign = 'center';
+                    const isRL = data.writingMode === 'vertical-rl';
+                    lines.forEach((line, i) => {
+                        let lx = isRL ? (width - 16 - (i * lineHeight) - baseFontSize / 2) : ((i * lineHeight) + baseFontSize / 2);
+                        let ly = halfLeading; // Y座標に余白を足してズレ解消
+                        line.forEach(seg => {
+                            ctx.fillStyle = seg.color || data.color || '#ef4444'; // ★保険: 万が一色を見失っても元の色を維持
+                            ctx.font = `${seg.isBold ? 'bold ' : ''}${baseFontSize}px sans-serif`;
+                            for (let j = 0; j < seg.text.length; j++) {
+                                const char = seg.text[j];
+                                ctx.fillText(char, lx, ly);
+                                ly += baseFontSize;
+                            }
+                        });
                     });
                 } else {
-                    ctx.textBaseline = 'top';
-                    let x = 0;
-                    if (data.textAlign === 'center') {
-                        ctx.textAlign = 'center';
-                        x = (width - 16) / 2;
-                    } else if (data.textAlign === 'right') {
-                        ctx.textAlign = 'right';
-                        x = width - 16;
-                    } else {
-                        ctx.textAlign = 'left';
-                    }
-
-                    const lines = text.split('\n');
-                    const lineHeight = parseFloat(data.fontSize || 20) * 1.2;
+                    ctx.textAlign = 'left';
                     lines.forEach((line, i) => {
-                        ctx.fillText(line, x, i * lineHeight);
+                        let lx = 0;
+                        let ly = i * lineHeight + halfLeading; // Y座標に余白を足してズレ解消
+
+                        if (data.textAlign === 'center' || data.textAlign === 'right') {
+                            let totalLineWidth = 0;
+                            line.forEach(seg => {
+                                ctx.font = `${seg.isBold ? 'bold ' : ''}${baseFontSize}px sans-serif`;
+                                totalLineWidth += ctx.measureText(seg.text).width;
+                            });
+                            if (data.textAlign === 'center') {
+                                lx = (width - 16 - totalLineWidth) / 2;
+                            } else if (data.textAlign === 'right') {
+                                lx = width - 16 - totalLineWidth;
+                            }
+                        }
+
+                        line.forEach(seg => {
+                            ctx.fillStyle = seg.color || data.color || '#ef4444'; // ★保険: 万が一色を見失っても元の色を維持
+                            ctx.font = `${seg.isBold ? 'bold ' : ''}${baseFontSize}px sans-serif`;
+                            const segWidth = ctx.measureText(seg.text).width;
+                            ctx.fillText(seg.text, lx, ly);
+
+                            if (seg.isUnderline) {
+                                ctx.fillRect(lx, ly + baseFontSize * 1.05, segWidth, Math.max(1, baseFontSize * 0.05));
+                            }
+                            if (seg.isStrike) {
+                                ctx.fillRect(lx, ly + baseFontSize * 0.5, segWidth, Math.max(1, baseFontSize * 0.05));
+                            }
+                            lx += segWidth;
+                        });
                     });
                 }
             }
@@ -2262,6 +2470,7 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
             ctx.restore();
         }
 
+        // 【改修】オリジナル画質での書き出し処理（PDF解像度対応）
         document.getElementById('btn-download-menu').addEventListener('click', async () => {
             saveDropdownMenu.classList.remove('show');
             if (uploadedImage.style.display === 'none' && pdfContainer.style.display === 'none') { alert('先に画像かPDFを新規作成で開いてください。'); return; }
@@ -2286,22 +2495,25 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
                 }));
                 
                 if (uploadedImage.style.display === 'block') {
+                    const natWidth = uploadedImage.naturalWidth;
+                    const natHeight = uploadedImage.naturalHeight;
                     const cssWidth = parseFloat(uploadedImage.style.width);
-                    const cssHeight = parseFloat(uploadedImage.style.height);
-                    
+                    const scaleRatio = natWidth / cssWidth; 
+
                     const exportCanvas = document.createElement('canvas');
-                    exportCanvas.width = cssWidth * RENDER_SCALE;
-                    exportCanvas.height = cssHeight * RENDER_SCALE;
+                    exportCanvas.width = natWidth;
+                    exportCanvas.height = natHeight;
                     const eCtx = exportCanvas.getContext('2d');
                     
-                    eCtx.drawImage(uploadedImage, 0, 0, exportCanvas.width, exportCanvas.height);
-                    
-                    eCtx.scale(RENDER_SCALE, RENDER_SCALE);
+                    eCtx.drawImage(uploadedImage, 0, 0, natWidth, natHeight);
+                    eCtx.scale(scaleRatio, scaleRatio);
                     
                     const cmds = state.canvasCommandsArray[0] || [];
                     cmds.forEach(cmd => executeCanvasCommand(eCtx, cmd));
                     
-                    state.elements.forEach(el => drawDOMElementToCanvas(eCtx, el));
+                    for (const el of state.elements) {
+                        await drawDOMElementToCanvas(eCtx, el);
+                    }
                     
                     const link = document.createElement('a'); 
                     link.download = `${window.currentFileName}_マスキング.png`; 
@@ -2312,44 +2524,54 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
                     const { jsPDF } = window.jspdf; 
                     let pdf = null;
                     
+                    // 【追加】高解像度描画とオリジナル用紙サイズ出力の分離
+                    const EXPORT_RENDER_SCALE = 3.0; 
+                    
                     for (let i = 1; i <= totalPdfPages; i++) {
                         loadingOverlay.querySelectorAll('div')[1].innerText = `PDFを生成中... (${i}/${totalPdfPages})`;
                         await new Promise(r => setTimeout(r, 10));
                         
                         const page = await window.currentPdfDoc.getPage(i);
-                        const viewport = page.getViewport({ scale: window.pdfBaseScale * RENDER_SCALE });
-                        const cssViewport = page.getViewport({ scale: window.pdfBaseScale });
+                        
+                        // 【改修】本来のPDFのサイズをベースにする
+                        const originalViewport = page.getViewport({ scale: 1.0 });
+                        const renderViewport = page.getViewport({ scale: EXPORT_RENDER_SCALE });
                         
                         const exportCanvas = document.createElement('canvas');
-                        exportCanvas.width = viewport.width;
-                        exportCanvas.height = viewport.height;
+                        exportCanvas.width = renderViewport.width;
+                        exportCanvas.height = renderViewport.height;
                         const eCtx = exportCanvas.getContext('2d');
                         
-                        await page.render({ canvasContext: eCtx, viewport: viewport }).promise;
+                        await page.render({ canvasContext: eCtx, viewport: renderViewport }).promise;
                         
                         eCtx.save();
-                        eCtx.scale(RENDER_SCALE, RENDER_SCALE);
+                        
+                        // 画面上のCSSサイズ(pdfBaseScale)から、内部のレンダリングサイズ(EXPORT_RENDER_SCALE)に変換
+                        const drawScale = EXPORT_RENDER_SCALE / window.pdfBaseScale;
+                        eCtx.scale(drawScale, drawScale);
                         
                         const cmds = state.canvasCommandsArray[i-1] || [];
                         cmds.forEach(cmd => executeCanvasCommand(eCtx, cmd));
                         
                         const pageDiv = document.getElementById(`pdf-page-${i}`);
                         const pageTop = pageDiv ? pageDiv.offsetTop : 0;
-                        
                         eCtx.translate(0, -pageTop);
-                        state.elements.forEach(el => drawDOMElementToCanvas(eCtx, el));
+                        
+                        for (const el of state.elements) {
+                            await drawDOMElementToCanvas(eCtx, el);
+                        }
+                        
                         eCtx.restore();
                         
-                        const imgData = exportCanvas.toDataURL('image/jpeg', 0.95);
-                        const pdfPageWidth = cssViewport.width * 0.75; 
-                        const pdfPageHeight = cssViewport.height * 0.75; 
+                        const imgData = exportCanvas.toDataURL('image/jpeg', 0.9);
                         
+                        // 【改修】jsPDFにはオリジナルサイズをそのまま指定
                         if (!pdf) {
-                            pdf = new jsPDF(cssViewport.width > cssViewport.height ? 'l' : 'p', 'pt', [pdfPageWidth, pdfPageHeight]);
+                            pdf = new jsPDF(originalViewport.width > originalViewport.height ? 'l' : 'p', 'pt', [originalViewport.width, originalViewport.height]);
                         } else {
-                            pdf.addPage([pdfPageWidth, pdfPageHeight], cssViewport.width > cssViewport.height ? 'l' : 'p');
+                            pdf.addPage([originalViewport.width, originalViewport.height], originalViewport.width > originalViewport.height ? 'l' : 'p');
                         }
-                        pdf.addImage(imgData, 'JPEG', 0, 0, pdfPageWidth, pdfPageHeight);
+                        pdf.addImage(imgData, 'JPEG', 0, 0, originalViewport.width, originalViewport.height);
                     }
                     pdf.save(`${window.currentFileName}_マスキング.pdf`);
                 }
@@ -2361,7 +2583,7 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
             }
         });
 
-        // --- 画像貼り付け・生成機能 ---
+        // --- 画像貼り付け・生成機能 --- 
         window.createImageElement = function(left, top, width, height, dataUrl) {
             const wrapper = document.createElement('div');
             wrapper.className = 'canvas-element image-element';
@@ -2403,7 +2625,6 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
                 selectedElements = [newImgEl];
                 newImgEl.classList.add('selected');
                 
-                // 追加: 自動的に選択ツールへ切り替える
                 document.getElementById('tool-select').checked = true;
                 currentTool = 'select';
                 updateToolbar();
@@ -2445,4 +2666,3 @@ document.getElementById('projectInput').addEventListener('change', (e) => {
         });
 
     </script>
-    
